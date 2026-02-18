@@ -72,6 +72,11 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 .scramble-player:last-child{border-bottom:none}
 .scramble-tier{font-weight:700;font-size:12px;width:24px;text-align:center}
 .tier-a{color:#ef4444}.tier-b{color:#f59e0b}.tier-c{color:#60a5fa}.tier-d{color:#a78bfa}
+.announce{background:linear-gradient(135deg,rgba(251,191,36,.1),rgba(74,222,128,.08));border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.announce-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.announce-body{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap}
+.announce-edit{width:100%;min-height:100px;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:vertical;line-height:1.6}
+.announce-edit:focus{border-color:var(--accent)}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
 .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -90,6 +95,7 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="doLogin()">Login</button><button class="btn btn-ghost" onclick="closeLogin()">Cancel</button></div>
 <div style="font-size:11px;color:var(--dim);margin-top:12px">Default: golf2026</div></div></div>
 <main class="container">
+<div id="announcement"></div>
 <div id="page-standings" class="page active"></div><div id="page-scores" class="page"></div><div id="page-matchups" class="page"></div>
 <div id="page-scramble" class="page"></div><div id="page-tournament" class="page"></div><div id="page-skins" class="page"></div>
 <div id="page-johnnys" class="page"></div><div id="page-admin" class="page"></div>
