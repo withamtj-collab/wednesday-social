@@ -2,12 +2,12 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const FRONT_PAR=36,BACK_PAR=34,MAX_HANDICAP=15,TOURNEY_WEEKS=6;
 const genId=()=>Math.random().toString(36).substr(2,9);
-let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[]};
+let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[],announcement:''};
 let isAdmin=false,curPage='standings';
 let skP=[],skC=5,jNine='front',jP=[],jC=5,jW={},jPd={};
 
 // Firebase
-function loadData(){db.ref('league').on('value',snap=>{const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026'};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];}document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderPage();});}
+function loadData(){db.ref('league').on('value',snap=>{const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026'};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();});}
 function sv(p,d){db.ref('league/'+p).set(d);}
 function svG(){sv('golfers',S.golfers.reduce((o,g,i)=>{o[i]=g;return o;},{}));}
 function svW(){sv('weeks',S.weeks.reduce((o,w,i)=>{o[i]=w;return o;},{}));}
@@ -27,15 +27,31 @@ function fD(d){return new Date(d+'T12:00:00').toLocaleDateString();}
 function avgRaw(g){const sc=gSc(g.id,S.weeks);if(!sc.length)return 99;return sc.reduce((a,s)=>a+s.score,0)/sc.length;}
 
 // Auth
-function toggleAuth(){if(isAdmin){isAdmin=false;curPage='standings';renderNav();renderPage();uAB();}else document.getElementById('login-modal').style.display='';}
+function toggleAuth(){if(isAdmin){isAdmin=false;curPage='standings';renderNav();renderAnnouncement();renderPage();uAB();}else document.getElementById('login-modal').style.display='';}
 function closeLogin(){document.getElementById('login-modal').style.display='none';document.getElementById('pw-input').value='';}
-function doLogin(){if(document.getElementById('pw-input').value===S.settings.adminPassword){isAdmin=true;closeLogin();renderNav();renderPage();uAB();}else alert('Incorrect password');}
+function doLogin(){if(document.getElementById('pw-input').value===S.settings.adminPassword){isAdmin=true;closeLogin();renderNav();renderAnnouncement();renderPage();uAB();}else alert('Incorrect password');}
 function uAB(){document.getElementById('auth-btn').innerHTML=isAdmin?'🔓 Logout':'🔐 Admin';}
 
 // Nav
 function renderNav(){const pages=isAdmin?['standings','scores','matchups','scramble','tournament','skins','johnnys','admin']:['standings','scores','matchups','scramble','tournament','skins','johnnys'];const lb={standings:'Standings',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();}
 function goPage(p){curPage=p;document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');renderNav();renderPage();}
 function renderPage(){const fn={standings:renderStandings,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
+
+function svA(){sv('announcement',S.announcement);}
+function renderAnnouncement(){
+  const el=document.getElementById('announcement');
+  if(isAdmin){
+    const esc=S.announcement.replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    el.innerHTML='<div class="announce"><div class="announce-title">📢 League Announcements <span style="font-size:11px;font-weight:400;color:var(--dim)">(editing)</span></div><textarea class="announce-edit" id="announce-text" placeholder="Type an announcement for the league... (leave blank to hide)">'+S.announcement.replace(/</g,'&lt;')+'</textarea><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary btn-sm" onclick="saveAnnounce()">Save</button><button class="btn btn-ghost btn-sm" onclick="clearAnnounce()">Clear</button></div></div>';
+  } else if(S.announcement.trim()){
+    const safe=S.announcement.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    el.innerHTML='<div class="announce"><div class="announce-title">📢 League Announcements</div><div class="announce-body">'+safe+'</div></div>';
+  } else {
+    el.innerHTML='';
+  }
+}
+function saveAnnounce(){const t=document.getElementById('announce-text');if(t){S.announcement=t.value;svA();}}
+function clearAnnounce(){S.announcement='';svA();}
 
 // ─── STANDINGS ───────────────────────────────────────────────
 function renderStandings(){
@@ -84,16 +100,24 @@ function renderMatchups(){
   let opts=rws.map(w=>'<option value="'+w.wn+'"'+(w.wn===mWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+'</option>').join('');
   let ab=isAdmin?'<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatch()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatch()">⚡ Resolve</button></div>':'';
   let h='<div class="card"><div class="card-title">⚔️ Weekly Matchups</div><div class="flex-between" style="margin-bottom:20px"><select onchange="mWk=+this.value;renderMatchups()" style="width:auto">'+opts+'</select>'+ab+'</div>';
+  // Admin: player selector for matchup generation
+  if(isAdmin&&!(wk?.matchups?.length)){
+    const mExcl=wk?.matchupExcluded||[];
+    h+='<div style="font-size:13px;font-weight:600;margin-bottom:8px">Select golfers playing this week:</div><div class="flex-wrap-sm" style="margin-bottom:16px">';
+    S.golfers.forEach(g=>{h+='<button class="chip'+(!mExcl.includes(g.id)?' active':'')+'" onclick="togMatchPl(\''+g.id+'\')">'+g.name+'</button>';});
+    h+='</div>';
+  }
   const ms=wk?.matchups||[];
   if(ms.length){h+='<div class="grid-auto-lg">';
     const ns=wk?.noShows||{};
     ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
       h+='<div class="match-card"><div class="match-label">Match '+(i+1)+'</div><div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
       (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>'+(m.result?'<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>':'')+'</div>';});
-    h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Enter scores, then generate matchups.':'No matchups yet.')+'</div>';}
+    h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Select players above, then click 🎲 Random Matchups.':'No matchups yet.')+'</div>';}
   h+='</div>';document.getElementById('page-matchups').innerHTML=h;
 }
-function genMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk||!wk.scores)return;const pl=S.golfers.filter(g=>wk.scores[g.id]).sort(()=>Math.random()-.5);const ms=[];for(let i=0;i<pl.length-1;i+=2)ms.push({g1:pl[i].id,g2:pl[i+1].id,result:null});if(pl.length%2===1)ms.push({g1:pl[pl.length-1].id,g2:null,result:pl[pl.length-1].id});wk.matchups=ms;svW();}
+function genMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const excl=wk.matchupExcluded||[];const pl=S.golfers.filter(g=>!excl.includes(g.id)).sort(()=>Math.random()-.5);if(pl.length<2){alert('Need at least 2 players');return;}const ms=[];for(let i=0;i<pl.length-1;i+=2)ms.push({g1:pl[i].id,g2:pl[i+1].id,result:null});if(pl.length%2===1)ms.push({g1:pl[pl.length-1].id,g2:null,result:pl[pl.length-1].id});wk.matchups=ms;svW();}
+function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
 function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:'tie'};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-eHcp(g1,S.weeks),n2=s2-eHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
 
 // ─── SCRAMBLE ────────────────────────────────────────────────
@@ -213,6 +237,6 @@ function aAdd(){const n=document.getElementById('nn').value.trim(),hv=document.g
 function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g=>g.id!==id);svG();}}
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
-function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[]};}
+function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[],announcement:''};}
 
 loadData();
