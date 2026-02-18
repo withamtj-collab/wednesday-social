@@ -108,6 +108,14 @@ function renderMatchups(){
     h+='</div>';
   }
   const ms=wk?.matchups||[];
+  // WhatsApp share buttons when matchups exist
+  if(ms.length&&isAdmin){
+    const hasResults=ms.some(m=>m.result);
+    h+='<div class="flex-wrap" style="margin-bottom:16px">';
+    h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waMatchups('+mWk+')">📱 Share Matchups</button>';
+    if(hasResults)h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waResults('+mWk+')">📱 Share Results</button>';
+    h+='</div>';
+  }
   if(ms.length){h+='<div class="grid-auto-lg">';
     const ns=wk?.noShows||{};
     ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
@@ -167,6 +175,7 @@ function renderScramble(){
         team.forEach(p=>{const tc={A:'tier-a',B:'tier-b',C:'tier-c',D:'tier-d'}[p.tier]||'';
           h+='<div class="scramble-player"><div style="display:flex;align-items:center;gap:8px"><span class="scramble-tier '+tc+'">'+p.tier+'</span><span style="font-weight:600">'+p.name+'</span></div><span class="badge badge-gold">'+p.hcp+'</span></div>';});
         h+='</div>';});h+='</div>';
+      if(isAdmin)h+='<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waScramble('+s.wn+')">📱 Share Teams</button></div>';
     }else if(!isAdmin){h+='<div style="text-align:center;padding:20px;color:var(--dim)">Teams not yet generated.</div>';}
     h+='</div>';});
   document.getElementById('page-scramble').innerHTML=h;
@@ -212,7 +221,7 @@ function renderTournament(){
       h+='</div></div>';}
     h+='</div></div>';
     if(t.champion)h+='<div class="champion-banner"><div style="font-size:36px">🏆</div><div style="font-size:22px;font-weight:800;color:var(--gold)">'+t.champion+'</div><div style="font-size:13px;color:var(--dim)">Tournament Champion</div></div>';
-    if(isAdmin)h+='<div style="margin-top:16px"><button class="btn btn-danger" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button></div>';}
+    if(isAdmin)h+='<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366;margin-right:8px" onclick="waTournament()">📱 Share Bracket</button><button class="btn btn-danger" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button></div>';}
   h+='</div><div class="card"><div class="card-title">🏅 Seedings</div><div class="overflow-x"><table><thead><tr><th>Seed</th><th>Golfer</th><th>Record</th><th>Win%</th></tr></thead><tbody>';
   seeded.forEach(g=>{h+='<tr><td style="font-weight:700;color:var(--accent)">#'+g.seed+'</td><td style="font-weight:600">'+g.name+'</td><td>'+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td></tr>';});
   h+='</tbody></table></div></div>';document.getElementById('page-tournament').innerHTML=h;
@@ -267,5 +276,107 @@ function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
 function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[],announcement:''};}
+
+// ─── WHATSAPP SHARE ──────────────────────────────────────────
+function siteUrl(){return window.location.href.split('?')[0].split('#')[0];}
+function waShare(msg){window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
+
+// Share: Weekly matchups set
+function waMatchups(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.matchups?.length)return;
+  let msg='⛳ *The Wednesday Social*\n📅 Week '+wn+' — '+fD(wk.date)+'\n'+(wk.nine==='front'?'Front 9':'Back 9')+'\n\n⚔️ *This Week\'s Matchups:*\n';
+  wk.matchups.forEach((m,i)=>{
+    const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
+    const h1=S.golfers.find(g=>g.id===m.g1),h2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
+    const hcp1=h1?eHcp(h1,S.weeks):0,hcp2=h2?eHcp(h2,S.weeks):0;
+    msg+=(i+1)+'. '+n1+' ('+hcp1+') vs '+n2+(h2?' ('+hcp2+')':'')+'\n';
+  });
+  msg+='\n🔗 '+siteUrl();
+  waShare(msg);
+}
+
+// Share: Week results recap
+function waResults(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  const par=wk.nine==='front'?FRONT_PAR:BACK_PAR;
+  const ns=wk.noShows||{};
+  let msg='⛳ *The Wednesday Social*\n📅 Week '+wn+' Results — '+fD(wk.date)+'\n'+(wk.nine==='front'?'Front 9':'Back 9')+' (Par '+par+')\n\n';
+
+  // Match results
+  if(wk.matchups?.length){
+    msg+='⚔️ *Match Results:*\n';
+    wk.matchups.forEach((m,i)=>{
+      const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
+      if(!m.g2){msg+=(i+1)+'. '+n1+' — BYE\n';return;}
+      const ns1=ns[m.g1],ns2=ns[m.g2];
+      if(ns1||ns2){
+        const w=m.result==='tie'?'TIE':gN(m.result);
+        msg+=(i+1)+'. '+n1+(ns1?' (NS)':'')+' vs '+n2+(ns2?' (NS)':'')+' → *'+w+'*\n';
+      }else{
+        const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];
+        const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
+        const net1=s1&&g1?s1-eHcp(g1,S.weeks):null,net2=s2&&g2?s2-eHcp(g2,S.weeks):null;
+        const w=m.result==='tie'?'TIE':m.result?gN(m.result):'TBD';
+        msg+=(i+1)+'. '+n1+(s1?' ('+s1+'/net '+(net1||'?')+')':'')+' vs '+n2+(s2?' ('+s2+'/net '+(net2||'?')+')':'')+' → *'+w+'*\n';
+      }
+    });
+    msg+='\n';
+  }
+
+  // Top 5 standings
+  const rw=regW();
+  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,pct,hcp:eHcp(g,S.weeks)};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
+  msg+='📊 *Standings (Top 10):*\n';
+  data.slice(0,10).forEach((g,i)=>{msg+=(i+1)+'. '+g.name+' ('+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+') HCP:'+g.hcp+'\n';});
+
+  msg+='\n🔗 Full standings: '+siteUrl();
+  waShare(msg);
+}
+
+// Share: Scramble teams
+function waScramble(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.scrambleTeams?.length)return;
+  let msg='⛳ *The Wednesday Social*\n🏌️ *Scramble — Week '+wn+'* ('+fD(wk.date)+')\n\n';
+  wk.scrambleTeams.forEach((team,ti)=>{
+    const th=team.reduce((a,p)=>a+p.hcp,0);
+    msg+='*Team '+(ti+1)+'* (HCP: '+th+')\n';
+    team.forEach(p=>{msg+='  '+p.tier+': '+p.name+' ('+p.hcp+')\n';});
+    msg+='\n';
+  });
+  msg+='🔗 '+siteUrl();
+  waShare(msg);
+}
+
+// Share: Tournament bracket
+function waTournament(){
+  const t=S.tournament;if(!t)return;
+  const rw=regW();
+  const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
+  const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
+
+  let msg='⛳ *The Wednesday Social*\n🏆 *Tournament Bracket Update*\n\n';
+
+  for(let r=1;r<=t.totalRounds;r++){
+    const rm=t.matches.filter(m=>m.round===r);
+    const lbl=r===t.totalRounds?'Finals':r===t.totalRounds-1&&t.totalRounds>2?'Semis':'Round '+r;
+    const hasData=rm.some(m=>m.g1||m.g2||m.isBye);
+    if(!hasData)continue;
+    msg+='*'+lbl+':*\n';
+    rm.forEach(m=>{
+      if(m.isBye){msg+='  ('+gs(m.winner)+') '+gN(m.winner)+' — BYE\n';}
+      else{
+        const n1=m.g1?'('+gs(m.g1)+') '+gN(m.g1):'TBD';
+        const n2=m.g2?'('+gs(m.g2)+') '+gN(m.g2):'TBD';
+        const w=m.winner?'→ *'+gN(m.winner)+'*':'';
+        msg+='  '+n1+' vs '+n2+' '+w+'\n';
+      }
+    });
+    msg+='\n';
+  }
+
+  if(t.champion)msg+='🏆 *Champion: '+t.champion+'*\n\n';
+  msg+='🔗 Full bracket: '+siteUrl();
+  waShare(msg);
+}
 
 loadData();
