@@ -116,7 +116,36 @@ function renderMatchups(){
     h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Select players above, then click 🎲 Random Matchups.':'No matchups yet.')+'</div>';}
   h+='</div>';document.getElementById('page-matchups').innerHTML=h;
 }
-function genMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const excl=wk.matchupExcluded||[];const pl=S.golfers.filter(g=>!excl.includes(g.id)).sort(()=>Math.random()-.5);if(pl.length<2){alert('Need at least 2 players');return;}const ms=[];for(let i=0;i<pl.length-1;i+=2)ms.push({g1:pl[i].id,g2:pl[i+1].id,result:null});if(pl.length%2===1)ms.push({g1:pl[pl.length-1].id,g2:null,result:pl[pl.length-1].id});wk.matchups=ms;svW();}
+function genMatch(){
+  const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;
+  const excl=wk.matchupExcluded||[];
+  const pl=S.golfers.filter(g=>!excl.includes(g.id));
+  if(pl.length<2){alert('Need at least 2 players');return;}
+  // Collect all prior matchup pairs this season (as sorted id strings)
+  const priorPairs=new Set();
+  S.weeks.forEach(w=>{if(w.wn===mWk||!w.matchups)return;(w.matchups||[]).forEach(m=>{if(m.g1&&m.g2)priorPairs.add([m.g1,m.g2].sort().join(':'));});});
+  // Score a set of matchups: count how many are repeats
+  function scoreMatchups(ms){let repeats=0;ms.forEach(m=>{if(m.g1&&m.g2&&priorPairs.has([m.g1,m.g2].sort().join(':')))repeats++;});return repeats;}
+  // Generate one random set of matchups
+  function makeMatchups(){
+    const shuffled=[...pl].sort(()=>Math.random()-.5);
+    const ms=[];
+    for(let i=0;i<shuffled.length-1;i+=2)ms.push({g1:shuffled[i].id,g2:shuffled[i+1].id,result:null});
+    if(shuffled.length%2===1)ms.push({g1:shuffled[shuffled.length-1].id,g2:null,result:shuffled[shuffled.length-1].id});
+    return ms;
+  }
+  // Try many times to find matchups with zero repeats
+  let best=null,bestScore=Infinity;
+  for(let att=0;att<500;att++){
+    const ms=makeMatchups();
+    const sc=scoreMatchups(ms);
+    if(sc<bestScore){bestScore=sc;best=ms;}
+    if(sc===0)break;
+  }
+  wk.matchups=best;
+  if(bestScore>0)alert('Note: Could not avoid all repeat matchups ('+bestScore+' repeat'+(bestScore>1?'s':'')+').\nWith '+pl.length+' players over many weeks, some repeats are unavoidable.');
+  svW();
+}
 function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
 function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:'tie'};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-eHcp(g1,S.weeks),n2=s2-eHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
 
