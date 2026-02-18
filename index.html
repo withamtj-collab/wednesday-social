@@ -10,820 +10,93 @@
 :root{--bg:#0a1a0f;--card:#0f2518;--border:#1a3a25;--accent:#4ade80;--accent-dim:#22633d;--gold:#fbbf24;--silver:#94a3b8;--text:#e2e8f0;--dim:#64748b;--danger:#ef4444;--input:#132e1c}
 *{margin:0;padding:0;box-sizing:border-box}
 body{min-height:100vh;background:linear-gradient(170deg,var(--bg),#0d1f14 50%,#091209);color:var(--text);font-family:'DM Sans','Segoe UI',sans-serif;font-size:14px}
-a{color:var(--accent)}
-::selection{background:var(--accent);color:var(--bg)}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-::-webkit-scrollbar-thumb:hover{background:var(--accent-dim)}
-
-/* Header */
+a{color:var(--accent)}::selection{background:var(--accent);color:var(--bg)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .header{background:linear-gradient(135deg,#0a1a0f,#132e1c);border-bottom:1px solid var(--border);padding:16px 0;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
 .header-inner{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .logo{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;font-family:'Playfair Display',Georgia,serif}
 .logo-sub{font-size:11px;color:var(--dim);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
 nav{display:flex;gap:4px;flex-wrap:wrap}
 .nav-btn{padding:8px 16px;border-radius:8px;border:none;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;transition:all .2s;background:transparent;color:var(--dim)}
-.nav-btn.active{background:var(--accent);color:var(--bg)}
-.nav-btn:hover:not(.active){background:var(--border)}
-
-/* Layout */
+.nav-btn.active{background:var(--accent);color:var(--bg)}.nav-btn:hover:not(.active){background:var(--border)}
 .container{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .grid-auto{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .grid-auto-md{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .grid-auto-lg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-.flex-wrap{display:flex;flex-wrap:wrap;gap:8px}
-.flex-wrap-sm{display:flex;flex-wrap:wrap;gap:6px}
-
-/* Card */
+.flex-wrap{display:flex;flex-wrap:wrap;gap:8px}.flex-wrap-sm{display:flex;flex-wrap:wrap;gap:6px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
 .card-title{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--accent);display:flex;align-items:center;gap:8px}
-
-/* Form controls */
 input,select{background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
-input{width:100%}
-input:focus,select:focus{border-color:var(--accent)}
-select{cursor:pointer}
-.input-sm{width:80px}
-.input-md{width:120px}
-.input-lg{width:200px}
-
-/* Buttons */
+input{width:100%}input:focus,select:focus{border-color:var(--accent)}select{cursor:pointer}
+.input-sm{width:80px}.input-md{width:120px}.input-lg{width:200px}
 .btn{padding:10px 20px;border-radius:8px;border:none;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s}
-.btn-primary{background:var(--accent);color:var(--bg)}
-.btn-primary:hover{filter:brightness(1.1)}
-.btn-danger{background:var(--danger);color:#fff}
-.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border)}
-.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
-.btn-sm{padding:4px 12px;font-size:12px}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-
-/* Checkbox */
+.btn-primary{background:var(--accent);color:var(--bg)}.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:4px 12px;font-size:12px}.btn:disabled{opacity:.5}
 .checkbox{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
-.checkbox-box{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s}
-.checkbox-box.checked{border-color:var(--accent);background:var(--accent)}
-.checkbox-box.checked::after{content:'✓';color:var(--bg);font-size:13px;font-weight:800}
-
-/* Chip selector */
-.chip{padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-family:inherit;background:transparent;color:var(--dim);font-size:13px;cursor:pointer;font-weight:400;transition:all .2s}
+.checkbox-box{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.checkbox-box.checked{border-color:var(--accent);background:var(--accent)}.checkbox-box.checked::after{content:'✓';color:var(--bg);font-size:13px;font-weight:800}
+.chip{padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-family:inherit;background:transparent;color:var(--dim);font-size:13px;cursor:pointer}
 .chip.active{border-color:var(--accent);background:rgba(74,222,128,.13);color:var(--accent);font-weight:600}
-
-/* Table */
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px;border-bottom:2px solid var(--border);color:var(--accent);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px}
-td{padding:10px;border-bottom:1px solid var(--border)}
-.overflow-x{overflow-x:auto}
-
-/* Badge */
+td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:auto}
 .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.badge-accent{background:rgba(74,222,128,.13);color:var(--accent)}
-.badge-gold{background:rgba(251,191,36,.13);color:var(--gold)}
-.badge-danger{background:rgba(239,68,68,.13);color:var(--danger)}
-.badge-silver{background:rgba(148,163,184,.13);color:var(--silver)}
-
-/* Stat box */
+.badge-accent{background:rgba(74,222,128,.13);color:var(--accent)}.badge-gold{background:rgba(251,191,36,.13);color:var(--gold)}
+.badge-danger{background:rgba(239,68,68,.13);color:var(--danger)}.badge-silver{background:rgba(148,163,184,.13);color:var(--silver)}
+.badge-blue{background:rgba(59,130,246,.13);color:#60a5fa}
 .stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
-.stat-val{font-size:24px;font-weight:800;color:var(--accent);word-break:break-word}
-.stat-val.gold{color:var(--gold)}
+.stat-val{font-size:24px;font-weight:800;color:var(--accent);word-break:break-word}.stat-val.gold{color:var(--gold)}
 .stat-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
-
-/* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:400px;width:100%}
-
-/* Match card */
 .match-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
 .match-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
 .match-vs{padding:0 12px;color:var(--dim);font-weight:700;font-size:12px}
-.match-name{font-weight:700;font-size:14px}
-.match-detail{font-size:11px;color:var(--dim)}
-.match-net{font-size:20px;font-weight:800}
-.winner{color:var(--accent)}
-
-/* Tournament bracket */
-.bracket-round{flex:1;min-width:200px}
-.bracket-round-title{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center}
-.bracket-match{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
-.bracket-match.bye{border-style:dashed}
+.match-name{font-weight:700;font-size:14px}.match-detail{font-size:11px;color:var(--dim)}.match-net{font-size:20px;font-weight:800}.winner{color:var(--accent)}
+.bracket-match{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}.bracket-match.bye{border-style:dashed}
 .bracket-row{display:flex;justify-content:space-between;align-items:center}
-.bracket-pick{background:none;border:none;cursor:pointer;font-size:16px;opacity:.3}
-.bracket-pick.won{opacity:1}
+.bracket-pick{background:none;border:none;cursor:pointer;font-size:16px;opacity:.3}.bracket-pick.won{opacity:1}
 .bracket-divider{height:1px;background:var(--border);margin:4px 0}
 .champion-banner{text-align:center;margin-top:24px;padding:24px;background:rgba(34,99,61,.2);border-radius:12px;border:1px solid rgba(251,191,36,.27)}
-
-/* Awards */
-.award{text-align:center;padding:16px}
-.award-emoji{font-size:32px}
-.award-label{font-size:12px;color:var(--dim);margin-bottom:4px}
-.award-name{font-weight:700;color:var(--gold)}
-.award-sub{font-size:12px;color:var(--dim)}
-
-/* Category card */
+.award{text-align:center;padding:16px}.award-emoji{font-size:32px}.award-label{font-size:12px;color:var(--dim);margin-bottom:4px}
+.award-name{font-weight:700;color:var(--gold)}.award-sub{font-size:12px;color:var(--dim)}
 .cat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
-.cat-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px}
-.cat-payout{margin-top:8px;font-size:14px;font-weight:700;color:var(--accent)}
-
-/* Payout row */
+.cat-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px}.cat-payout{margin-top:8px;font-size:14px;font-weight:700;color:var(--accent)}
 .payout-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
-
-/* Highlight rows */
-.row-highlight{background:rgba(34,99,61,.09)}
-
-/* Danger zone */
-.danger-zone{border-color:rgba(239,68,68,.27)}
-
-/* Loading */
+.row-highlight{background:rgba(34,99,61,.09)}.danger-zone{border-color:rgba(239,68,68,.27)}
+.scramble-team{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.scramble-player{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(26,58,37,.5)}
+.scramble-player:last-child{border-bottom:none}
+.scramble-tier{font-weight:700;font-size:12px;width:24px;text-align:center}
+.tier-a{color:#ef4444}.tier-b{color:#f59e0b}.tier-c{color:#60a5fa}.tier-d{color:#a78bfa}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
 .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* Page sections hidden by default */
-.page{display:none}
-.page.active{display:block}
-
-/* Responsive */
-@media(max-width:768px){
-  .grid-2{grid-template-columns:1fr}
-  .grid-3{grid-template-columns:1fr}
-  .header-inner{flex-direction:column;align-items:flex-start}
-  .logo{font-size:22px}
-  .container{padding:16px 12px 40px}
-}
+.page{display:none}.page.active{display:block}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}.header-inner{flex-direction:column;align-items:flex-start}.logo{font-size:22px}.container{padding:16px 12px 40px}}
 </style>
 </head>
 <body>
-
-<!-- Loading screen -->
-<div id="loading" class="loading">
-  <div style="font-size:36px;margin-bottom:16px">⛳</div>
-  <div class="spinner"></div>
-  <div style="margin-top:16px;color:var(--dim)">Loading league data...</div>
-</div>
-
-<!-- App (hidden until loaded) -->
+<div id="loading" class="loading"><div style="font-size:36px;margin-bottom:16px">⛳</div><div class="spinner"></div><div style="margin-top:16px;color:var(--dim)">Loading league data...</div></div>
 <div id="app" style="display:none">
-
-  <!-- Header -->
-  <header class="header">
-    <div class="header-inner">
-      <div>
-        <div class="logo">⛳ The Wednesday Social</div>
-        <div class="logo-sub">Golf League</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <nav id="nav"></nav>
-        <button id="auth-btn" class="btn btn-ghost" style="font-size:12px" onclick="toggleAuth()">🔐 Admin</button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Login Modal -->
-  <div id="login-modal" class="modal-overlay" style="display:none" onclick="closeLogin()">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div style="font-size:20px;font-weight:700;margin-bottom:16px;color:var(--accent)">🔐 Admin Login</div>
-      <input id="pw-input" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="btn btn-primary" onclick="doLogin()">Login</button>
-        <button class="btn btn-ghost" onclick="closeLogin()">Cancel</button>
-      </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:12px">Default: golf2026</div>
-    </div>
-  </div>
-
-  <!-- Pages -->
-  <main class="container">
-    <div id="page-standings" class="page active"></div>
-    <div id="page-scores" class="page"></div>
-    <div id="page-matchups" class="page"></div>
-    <div id="page-tournament" class="page"></div>
-    <div id="page-skins" class="page"></div>
-    <div id="page-commish" class="page"></div>
-    <div id="page-admin" class="page"></div>
-  </main>
-</div>
-
-<!-- Firebase SDK (v9 compat) -->
+<header class="header"><div class="header-inner"><div><div class="logo">⛳ The Wednesday Social</div><div class="logo-sub">Golf League</div></div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><nav id="nav"></nav><button id="auth-btn" class="btn btn-ghost" style="font-size:12px" onclick="toggleAuth()">🔐 Admin</button></div></div></header>
+<div id="login-modal" class="modal-overlay" style="display:none" onclick="closeLogin()"><div class="modal" onclick="event.stopPropagation()">
+<div style="font-size:20px;font-weight:700;margin-bottom:16px;color:var(--accent)">🔐 Admin Login</div>
+<input id="pw-input" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()">
+<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="doLogin()">Login</button><button class="btn btn-ghost" onclick="closeLogin()">Cancel</button></div>
+<div style="font-size:11px;color:var(--dim);margin-top:12px">Default: golf2026</div></div></div>
+<main class="container">
+<div id="page-standings" class="page active"></div><div id="page-scores" class="page"></div><div id="page-matchups" class="page"></div>
+<div id="page-scramble" class="page"></div><div id="page-tournament" class="page"></div><div id="page-skins" class="page"></div>
+<div id="page-johnnys" class="page"></div><div id="page-admin" class="page"></div>
+</main></div>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<script>
-// ═══════════════════════════════════════════════════════════════
-// 🔧 PASTE YOUR FIREBASE CONFIG HERE
-// ═══════════════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyBX69goNK8vbScUciBJCa1QJSaxu1KXlKo",
-  authDomain: "wednesday-social-c3a11.firebaseapp.com",
-  databaseURL: "https://wednesday-social-c3a11-default-rtdb.firebaseio.com",
-  projectId: "wednesday-social-c3a11",
-  storageBucket: "wednesday-social-c3a11.firebasestorage.app",
-  messagingSenderId: "466466155926",
-  appId: "1:466466155926:web:5ae46c763dea00701e81b7",
-  measurementId: "G-K3CQN6QB69"
-};
-// ═══════════════════════════════════════════════════════════════
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ─── Constants ───────────────────────────────────────────────
-const FRONT_PAR = 36, BACK_PAR = 34, MAX_HANDICAP = 15, TOURNEY_WEEKS = 6;
-const genId = () => Math.random().toString(36).substr(2, 9);
-
-// ─── State ───────────────────────────────────────────────────
-let state = {
-  golfers: [],
-  weeks: [],
-  settings: { startDate: '', endDate: '', adminPassword: 'golf2026' },
-  tournament: null
-};
-let isAdmin = false;
-let currentPage = 'standings';
-
-// Skins/commish local state
-let skinsPlayers = [], skinsCost = 5;
-let commishNine = 'front', commishPlayers = [], commishCost = 5, commishWinners = {}, commishPaid = {};
-
-// ─── Firebase Data Sync ──────────────────────────────────────
-function loadData() {
-  db.ref('league').on('value', snap => {
-    const d = snap.val();
-    if (d) {
-      state.golfers = d.golfers ? Object.values(d.golfers) : [];
-      state.weeks = d.weeks ? Object.values(d.weeks) : [];
-      state.settings = d.settings || { startDate: '', endDate: '', adminPassword: 'golf2026' };
-      state.tournament = d.tournament || null;
-    }
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = '';
-    renderNav();
-    renderPage();
-  });
-}
-
-function save(path, data) {
-  db.ref('league/' + path).set(data);
-}
-function saveGolfers() { save('golfers', state.golfers.reduce((o,g,i) => { o[i]=g; return o; }, {})); }
-function saveWeeks() { save('weeks', state.weeks.reduce((o,w,i) => { o[i]=w; return o; }, {})); }
-function saveSettings() { save('settings', state.settings); }
-function saveTournament() { save('tournament', state.tournament); }
-
-// ─── Helpers ─────────────────────────────────────────────────
-function weeksBetween(s, e) {
-  if (!s || !e) return [];
-  const ws = []; let d = new Date(s+'T12:00:00'), end = new Date(e+'T12:00:00'), i = 1;
-  while (d <= end) { ws.push({ wn:i, date:d.toISOString().split('T')[0], nine:'front', scores:{}, matchups:[] }); d.setDate(d.getDate()+7); i++; }
-  return ws;
-}
-
-function calcHcp(scores, weeks) {
-  if (!scores.length) return 0;
-  let tot=0, c=0;
-  scores.forEach(({wn,score}) => { const w=weeks.find(x=>x.wn===wn); if(!w||!score)return; tot+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR)); c++; });
-  return c ? Math.min(MAX_HANDICAP, Math.round(tot/c)) : 0;
-}
-
-function gScores(gid, wks) { return (wks||state.weeks).filter(w=>w.scores&&w.scores[gid]).map(w=>({wn:w.wn,score:w.scores[gid]})); }
-function effHcp(g, wks) { const s=gScores(g.id,wks); return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,wks||state.weeks); }
-
-function getRecord(gid, wks) {
-  let w=0,l=0,t=0;
-  (wks||state.weeks).forEach(wk => { const m=(wk.matchups||[]).find(m=>m.g1===gid||m.g2===gid); if(!m||!m.result)return; if(m.result==='tie')t++;else if(m.result===gid)w++;else l++; });
-  return {w,l,t};
-}
-
-function getName(id) { return state.golfers.find(g=>g.id===id)?.name || 'TBD'; }
-const regW = () => Math.max(0, state.weeks.length - TOURNEY_WEEKS);
-const fmtDate = d => new Date(d+'T12:00:00').toLocaleDateString();
-
-// ─── Auth ────────────────────────────────────────────────────
-function toggleAuth() {
-  if (isAdmin) { isAdmin = false; currentPage = 'standings'; renderNav(); renderPage(); updateAuthBtn(); }
-  else document.getElementById('login-modal').style.display = '';
-}
-function closeLogin() { document.getElementById('login-modal').style.display = 'none'; document.getElementById('pw-input').value = ''; }
-function doLogin() {
-  const pw = document.getElementById('pw-input').value;
-  if (pw === state.settings.adminPassword) { isAdmin = true; closeLogin(); renderNav(); renderPage(); updateAuthBtn(); }
-  else alert('Incorrect password');
-}
-function updateAuthBtn() {
-  document.getElementById('auth-btn').innerHTML = isAdmin ? '🔓 Logout' : '🔐 Admin';
-}
-
-// ─── Navigation ──────────────────────────────────────────────
-function renderNav() {
-  const pages = isAdmin
-    ? ['standings','scores','matchups','tournament','skins','commish','admin']
-    : ['standings','scores','matchups','tournament','skins','commish'];
-  const labels = {standings:'Standings',scores:'Scores',matchups:'Matchups',tournament:'Tournament',skins:'💰 Skins',commish:'🏆 Commish',admin:'🔧 Admin'};
-  document.getElementById('nav').innerHTML = pages.map(p =>
-    `<button class="nav-btn${currentPage===p?' active':''}" onclick="goPage('${p}')">${labels[p]}</button>`
-  ).join('');
-  updateAuthBtn();
-}
-
-function goPage(p) {
-  currentPage = p;
-  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  renderNav();
-  renderPage();
-}
-
-// ─── Render Router ───────────────────────────────────────────
-function renderPage() {
-  switch(currentPage) {
-    case 'standings': renderStandings(); break;
-    case 'scores': renderScores(); break;
-    case 'matchups': renderMatchups(); break;
-    case 'tournament': renderTournament(); break;
-    case 'skins': renderSkins(); break;
-    case 'commish': renderCommish(); break;
-    case 'admin': if(isAdmin) renderAdmin(); break;
-  }
-}
-
-// ─── STANDINGS PAGE ──────────────────────────────────────────
-function renderStandings() {
-  const rw = regW();
-  const data = state.golfers.map(g => {
-    const rec = getRecord(g.id, state.weeks.slice(0, rw));
-    const hcp = effHcp(g, state.weeks);
-    const sc = gScores(g.id, state.weeks);
-    const avg = sc.length ? (sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1) : '-';
-    const tot = rec.w+rec.l+rec.t;
-    const pct = tot>0 ? (rec.w+rec.t*.5)/tot : 0;
-    return {...g, rec, hcp, rounds:sc.length, avg, pct};
-  }).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
-
-  const low = data.filter(g=>g.rounds>0).sort((a,b)=>a.hcp-b.hcp)[0];
-  const wp = state.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
-
-  let html = `<div class="grid-auto" style="margin-bottom:20px">
-    <div class="stat-box"><div class="stat-val">${state.golfers.length}</div><div class="stat-label">Golfers</div></div>
-    <div class="stat-box"><div class="stat-val">${wp}</div><div class="stat-label">Weeks Played</div></div>
-    <div class="stat-box"><div class="stat-val gold">${low?low.name+' ('+low.hcp+')':'-'}</div><div class="stat-label">Low Handicap</div></div>
-  </div>`;
-
-  if (state.settings.startDate && state.settings.endDate) {
-    html += `<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Season: ${fmtDate(state.settings.startDate)} – ${fmtDate(state.settings.endDate)} | ${state.weeks.length} weeks (${rw} regular + ${state.weeks.length-rw} tournament)</div>`;
-  }
-
-  html += `<div class="card"><div class="card-title">📊 League Standings</div><div class="overflow-x"><table>
-    <thead><tr><th>#</th><th>Golfer</th><th>W</th><th>L</th><th>T</th><th>Win%</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>`;
-  data.forEach((g,i) => {
-    html += `<tr${i<3?' class="row-highlight"':''}>
-      <td>${i+1}</td><td style="font-weight:600">${g.name}</td>
-      <td style="color:var(--accent)">${g.rec.w}</td><td style="color:var(--danger)">${g.rec.l}</td><td>${g.rec.t}</td>
-      <td>${(g.pct*100).toFixed(1)}%</td><td><span class="badge badge-gold">${g.hcp}</span></td>
-      <td>${g.rounds}</td><td>${g.avg}</td>
-      <td>${g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>'}</td></tr>`;
-  });
-  html += `</tbody></table></div></div>`;
-
-  html += `<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md">
-    <div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">${data[0]?.name||'TBD'}</div>${data[0]?`<div class="award-sub">${data[0].rec.w}-${data[0].rec.l}-${data[0].rec.t}</div>`:''}</div>
-    <div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">${low?.name||'TBD'}</div>${low?`<div class="award-sub">HCP: ${low.hcp}</div>`:''}</div>
-    <div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">${state.tournament?.champion||'TBD'}</div></div>
-  </div></div>`;
-
-  document.getElementById('page-standings').innerHTML = html;
-}
-
-// ─── SCORES PAGE ─────────────────────────────────────────────
-let scoresWeek = 1;
-function renderScores() {
-  if (!state.weeks.length) { document.getElementById('page-scores').innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No weeks generated yet. Admin must set season dates first.</div>'; return; }
-  if (scoresWeek > state.weeks.length) scoresWeek = 1;
-  const wk = state.weeks.find(w=>w.wn===scoresWeek);
-  const par = wk?.nine==='front' ? FRONT_PAR : BACK_PAR;
-
-  let weekOpts = state.weeks.map(w=>`<option value="${w.wn}"${w.wn===scoresWeek?' selected':''}>Week ${w.wn} – ${fmtDate(w.date)}</option>`).join('');
-  let nineOpts = isAdmin ? `<select onchange="setNine(this.value)" style="width:auto"><option value="front"${wk?.nine==='front'?' selected':''}>Front 9 (Par ${FRONT_PAR})</option><option value="back"${wk?.nine==='back'?' selected':''}>Back 9 (Par ${BACK_PAR})</option></select>` : '';
-
-  let html = `<div class="card"><div class="card-title">📝 Weekly Scores</div>
-    <div class="flex-between" style="margin-bottom:20px">
-      <div class="flex-wrap"><select onchange="scoresWeek=+this.value;renderScores()" style="width:auto">${weekOpts}</select>${nineOpts}</div>
-      <div style="font-size:13px;color:var(--dim)">${wk?.nine==='front'?'Front 9':'Back 9'} | Par: <strong style="color:var(--accent)">${par}</strong></div>
-    </div>
-    <div class="overflow-x"><table><thead><tr><th>Golfer</th><th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>`;
-
-  state.golfers.forEach(g => {
-    const sc = wk?.scores?.[g.id];
-    const hcp = effHcp(g, state.weeks);
-    const over = sc ? sc-par : null;
-    const net = sc ? sc-hcp : null;
-    const overStr = over!=null ? (over>0?'+'+over:over) : '-';
-    const overColor = over>0?'var(--danger)':over<0?'var(--accent)':'var(--text)';
-    html += `<tr><td style="font-weight:600">${g.name}</td>`;
-    if (isAdmin) html += `<td><input type="number" class="input-sm" value="${sc||''}" onchange="setScore('${g.id}',this.value)"></td>`;
-    else html += `<td>${sc||'-'}</td>`;
-    html += `<td style="color:${overColor}">${overStr}</td><td><span class="badge badge-gold">${hcp}</span></td><td style="font-weight:700">${net!=null?net:'-'}</td></tr>`;
-  });
-  html += '</tbody></table></div></div>';
-  document.getElementById('page-scores').innerHTML = html;
-}
-
-function setNine(v) {
-  const wk = state.weeks.find(w=>w.wn===scoresWeek);
-  if (wk) { wk.nine = v; saveWeeks(); }
-}
-
-function setScore(gid, val) {
-  const wk = state.weeks.find(w=>w.wn===scoresWeek);
-  if (!wk) return;
-  if (!wk.scores) wk.scores = {};
-  if (val===''||val===null) delete wk.scores[gid];
-  else wk.scores[gid] = parseInt(val);
-  saveWeeks();
-}
-
-// ─── MATCHUPS PAGE ───────────────────────────────────────────
-let matchWeek = 1;
-function renderMatchups() {
-  const rw = regW();
-  const regWeeks = state.weeks.slice(0, rw);
-  if (!regWeeks.length) { document.getElementById('page-matchups').innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No regular season weeks available.</div>'; return; }
-  if (matchWeek > rw) matchWeek = 1;
-  const wk = state.weeks.find(w=>w.wn===matchWeek);
-
-  let opts = regWeeks.map(w=>`<option value="${w.wn}"${w.wn===matchWeek?' selected':''}>Week ${w.wn} – ${fmtDate(w.date)}</option>`).join('');
-  let adminBtns = isAdmin ? `<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatchups()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatchups()">⚡ Resolve</button></div>` : '';
-
-  let html = `<div class="card"><div class="card-title">⚔️ Weekly Matchups</div>
-    <div class="flex-between" style="margin-bottom:20px">
-      <select onchange="matchWeek=+this.value;renderMatchups()" style="width:auto">${opts}</select>${adminBtns}
-    </div>`;
-
-  const ms = wk?.matchups||[];
-  if (ms.length) {
-    html += '<div class="grid-auto-lg">';
-    ms.forEach((m,i) => {
-      const g1=state.golfers.find(g=>g.id===m.g1), g2=m.g2?state.golfers.find(g=>g.id===m.g2):null;
-      const s1=wk.scores?.[m.g1], s2=m.g2?wk.scores?.[m.g2]:null;
-      const h1=g1?effHcp(g1,state.weeks):0, h2=g2?effHcp(g2,state.weeks):0;
-      const n1=s1?s1-h1:null, n2=s2?s2-h2:null;
-      html += `<div class="match-card"><div class="match-label">Match ${i+1}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="flex:1;text-align:center">
-            <div class="match-name${m.result===m.g1?' winner':''}">${g1?.name||'?'}</div>
-            <div class="match-detail">HCP:${h1}${s1?' | '+s1:''}</div>
-            ${n1!=null?`<div class="match-net${m.result===m.g1?' winner':''}">${n1}</div>`:''}
-          </div>
-          <div class="match-vs">VS</div>
-          <div style="flex:1;text-align:center">
-            ${g2?`<div class="match-name${m.result===m.g2?' winner':''}">${g2.name}</div>
-            <div class="match-detail">HCP:${h2}${s2?' | '+s2:''}</div>
-            ${n2!=null?`<div class="match-net${m.result===m.g2?' winner':''}">${n2}</div>`:''}`:'<div style="color:var(--dim)">BYE</div>'}
-          </div>
-        </div>
-        ${m.result?`<div style="text-align:center;margin-top:8px">${m.result==='tie'?'<span class="badge badge-silver">TIE</span>':`<span class="badge badge-accent">Winner: ${getName(m.result)}</span>`}</div>`:''}
-      </div>`;
-    });
-    html += '</div>';
-  } else {
-    html += `<div style="text-align:center;padding:40px;color:var(--dim)">${isAdmin?'Enter scores first, then generate matchups.':'No matchups yet.'}</div>`;
-  }
-  html += '</div>';
-  document.getElementById('page-matchups').innerHTML = html;
-}
-
-function genMatchups() {
-  const wk = state.weeks.find(w=>w.wn===matchWeek);
-  if (!wk||!wk.scores) return;
-  const pl = state.golfers.filter(g=>wk.scores[g.id]).sort(()=>Math.random()-.5);
-  const ms = [];
-  for (let i=0;i<pl.length-1;i+=2) ms.push({g1:pl[i].id,g2:pl[i+1].id,result:null});
-  if (pl.length%2===1) ms.push({g1:pl[pl.length-1].id,g2:null,result:pl[pl.length-1].id});
-  wk.matchups = ms;
-  saveWeeks();
-}
-
-function resolveMatchups() {
-  const wk = state.weeks.find(w=>w.wn===matchWeek);
-  if (!wk) return;
-  wk.matchups = (wk.matchups||[]).map(m => {
-    if (!m.g2) return {...m, result:m.g1};
-    const s1=wk.scores?.[m.g1], s2=wk.scores?.[m.g2];
-    if (!s1||!s2) return m;
-    const g1=state.golfers.find(g=>g.id===m.g1), g2=state.golfers.find(g=>g.id===m.g2);
-    const n1=s1-effHcp(g1,state.weeks), n2=s2-effHcp(g2,state.weeks);
-    return {...m, result:n1<n2?m.g1:n2<n1?m.g2:'tie'};
-  });
-  saveWeeks();
-}
-
-// ─── TOURNAMENT PAGE ─────────────────────────────────────────
-function renderTournament() {
-  const rw = regW();
-  const seeded = state.golfers.map(g => {
-    const r=getRecord(g.id,state.weeks.slice(0,rw)); const tot=r.w+r.l+r.t; const pct=tot>0?(r.w+r.t*.5)/tot:0;
-    return {...g, rec:r, pct};
-  }).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
-
-  const t = state.tournament;
-  let html = '<div class="card"><div class="card-title">🏆 End of Season Tournament</div>';
-
-  if (!t) {
-    html += `<div style="text-align:center;padding:40px">
-      <div style="font-size:48px;margin-bottom:16px">🏆</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Tournament Bracket</div>
-      <div style="color:var(--dim);margin-bottom:20px">Seeded by regular season record. NCAA-style bracket with play-in games.</div>
-      ${isAdmin&&seeded.length>=2?'<button class="btn btn-primary" onclick="genBracket()">Generate Bracket</button>':''}
-      ${!isAdmin?'<div style="color:var(--dim)">Admin will generate the bracket.</div>':''}
-    </div>`;
-  } else {
-    html += '<div style="overflow-x:auto"><div style="display:flex;gap:20px;min-width:'+t.totalRounds*240+'px;align-items:stretch">';
-    for (let r=1;r<=t.totalRounds;r++) {
-      const rm = t.matches.filter(m=>m.round===r);
-      const lbl = r===t.totalRounds?'Finals':r===t.totalRounds-1&&t.totalRounds>2?'Semis':'Round '+r;
-      html += `<div class="bracket-round"><div class="bracket-round-title">${lbl}</div><div style="display:flex;flex-direction:column;gap:8px;justify-content:space-around;height:100%">`;
-      rm.forEach(m => {
-        const gs = id => seeded.find(g=>g.id===id)?.seed||'?';
-        if (m.isBye) {
-          html += `<div class="bracket-match bye"><div style="text-align:center;font-size:12px;color:var(--dim)"><strong>(${gs(m.winner)}) ${getName(m.winner)}</strong> – BYE</div></div>`;
-        } else {
-          const n1 = m.g1?`(${gs(m.g1)}) ${getName(m.g1)}`:'TBD';
-          const n2 = m.g2?`(${gs(m.g2)}) ${getName(m.g2)}`:'TBD';
-          const pick1 = isAdmin&&m.g1&&m.g2 ? `<button class="bracket-pick${m.winner===m.g1?' won':''}" onclick="setTournWinner('${m.id}','${m.g1}')">✅</button>` : '';
-          const pick2 = isAdmin&&m.g1&&m.g2 ? `<button class="bracket-pick${m.winner===m.g2?' won':''}" onclick="setTournWinner('${m.id}','${m.g2}')">✅</button>` : '';
-          html += `<div class="bracket-match">
-            <div class="bracket-row"><span style="font-weight:${m.winner===m.g1?700:400};color:${m.winner===m.g1?'var(--accent)':'var(--text)'};font-size:13px">${n1}</span>${pick1}</div>
-            <div class="bracket-divider"></div>
-            <div class="bracket-row"><span style="font-weight:${m.winner===m.g2?700:400};color:${m.winner===m.g2?'var(--accent)':'var(--text)'};font-size:13px">${n2}</span>${pick2}</div>
-          </div>`;
-        }
-      });
-      html += '</div></div>';
-    }
-    html += '</div></div>';
-    if (t.champion) html += `<div class="champion-banner"><div style="font-size:36px">🏆</div><div style="font-size:22px;font-weight:800;color:var(--gold)">${t.champion}</div><div style="font-size:13px;color:var(--dim)">Tournament Champion</div></div>`;
-    if (isAdmin) html += `<div style="margin-top:16px"><button class="btn btn-danger" onclick="if(confirm('Reset bracket?')){state.tournament=null;saveTournament();renderTournament();}">Reset Bracket</button></div>`;
-  }
-  html += '</div>';
-
-  // Seedings table
-  html += `<div class="card"><div class="card-title">🏅 Seedings</div><div class="overflow-x"><table>
-    <thead><tr><th>Seed</th><th>Golfer</th><th>Record</th><th>Win%</th></tr></thead><tbody>`;
-  seeded.forEach(g => {
-    html += `<tr><td style="font-weight:700;color:var(--accent)">#${g.seed}</td><td style="font-weight:600">${g.name}</td><td>${g.rec.w}-${g.rec.l}-${g.rec.t}</td><td>${(g.pct*100).toFixed(1)}%</td></tr>`;
-  });
-  html += '</tbody></table></div></div>';
-  document.getElementById('page-tournament').innerHTML = html;
-}
-
-function bracketOrder(sz) {
-  if (sz===2) return [0,1];
-  const h=bracketOrder(sz/2);
-  return h.reduce((a,s)=>{a.push(s);a.push(sz-1-s);return a;},[]);
-}
-
-function genBracket() {
-  const rw = regW();
-  const seeded = state.golfers.map(g => {
-    const r=getRecord(g.id,state.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};
-  }).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
-
-  const n=seeded.length;if(n<2)return;
-  let bs=2;while(bs<n)bs*=2;
-  const seeds=Array.from({length:bs},(_,i)=>i<n?seeded[i]:null);
-  const ord=bracketOrder(bs).map(p=>seeds[p]);
-  const ms=[];
-  for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}
-  const tr=Math.log2(bs);const all=[...ms];let prev=ms;
-  for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}
-  state.tournament={matches:all,totalRounds:tr,bracketSize:bs,champion:null};
-  saveTournament();
-}
-
-function setTournWinner(mid, wid) {
-  const t=state.tournament;if(!t)return;
-  const match=t.matches.find(m=>m.id===mid);if(!match)return;match.winner=wid;
-  const next=t.matches.find(m=>m.feedsFrom&&m.feedsFrom.includes(mid));
-  if(next){const idx=next.feedsFrom.indexOf(mid);if(idx===0)next.g1=wid;else next.g2=wid;next.winner=null;}
-  const fin=t.matches.find(m=>m.round===t.totalRounds);
-  t.champion=fin?.winner?getName(fin.winner):null;
-  saveTournament();
-}
-
-// ─── SKINS PAGE ──────────────────────────────────────────────
-function renderSkins() {
-  const pot = skinsPlayers.filter(p=>p.paid).length * skinsCost;
-  const ts = skinsPlayers.reduce((a,p)=>a+(p.skins||0),0);
-  const ps = ts>0?pot/ts:0;
-
-  let html = `<div class="card"><div class="card-title">💰 Skins Game Calculator</div>
-    <div style="margin-bottom:16px"><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Cost Per Person ($)</label>
-    <input type="number" class="input-md" value="${skinsCost}" onchange="skinsCost=+this.value;renderSkins()"></div>
-    <div style="font-size:14px;font-weight:600;margin-bottom:8px">Select Players:</div>
-    <div class="flex-wrap-sm" style="margin-bottom:20px">`;
-  state.golfers.forEach(g => {
-    const isIn = skinsPlayers.some(p=>p.id===g.id);
-    html += `<button class="chip${isIn?' active':''}" onclick="toggleSkinPlayer('${g.id}')">${g.name}</button>`;
-  });
-  html += '</div>';
-
-  if (skinsPlayers.length) {
-    html += `<div class="overflow-x"><table><thead><tr><th>Player</th><th>Paid</th><th>Skins</th><th>Payout</th></tr></thead><tbody>`;
-    skinsPlayers.forEach(p => {
-      const g=state.golfers.find(g=>g.id===p.id);
-      html += `<tr><td style="font-weight:600">${g?.name}</td>
-        <td><label class="checkbox"><div class="checkbox-box${p.paid?' checked':''}" onclick="toggleSkinPaid('${p.id}')"></div></label></td>
-        <td><input type="number" class="input-sm" min="0" value="${p.skins||''}" onchange="setSkinCount('${p.id}',+this.value)"></td>
-        <td style="font-weight:700;color:var(--accent)">$${(p.skins*ps).toFixed(2)}</td></tr>`;
-    });
-    html += '</tbody></table></div>';
-    html += `<div class="grid-auto" style="margin-top:16px">
-      <div class="stat-box"><div class="stat-val gold">$${pot.toFixed(2)}</div><div class="stat-label">Total Pot</div></div>
-      <div class="stat-box"><div class="stat-val">${ts}</div><div class="stat-label">Total Skins</div></div>
-      <div class="stat-box"><div class="stat-val">$${ps.toFixed(2)}</div><div class="stat-label">Per Skin</div></div>
-    </div>`;
-  }
-  html += '</div>';
-  document.getElementById('page-skins').innerHTML = html;
-}
-
-function toggleSkinPlayer(id) {
-  const idx = skinsPlayers.findIndex(p=>p.id===id);
-  if (idx>=0) skinsPlayers.splice(idx,1); else skinsPlayers.push({id,skins:0,paid:false});
-  renderSkins();
-}
-function toggleSkinPaid(id) { const p=skinsPlayers.find(p=>p.id===id);if(p)p.paid=!p.paid;renderSkins(); }
-function setSkinCount(id,v) { const p=skinsPlayers.find(p=>p.id===id);if(p)p.skins=v;renderSkins(); }
-
-// ─── COMMISH PAGE ────────────────────────────────────────────
-function renderCommish() {
-  const cats = commishNine==='front' ? ['Closest to Pin','Longest Putt','Longest Drive'] : ['Closest to Pin #10','Longest Putt','Closest to Pin #17'];
-  const pc = Object.values(commishPaid).filter(Boolean).length;
-  const pot = pc * commishCost;
-  const perCat = cats.length>0 ? pot/cats.length : 0;
-
-  let html = `<div class="card"><div class="card-title">🏆 Commish Game Calculator</div>
-    <div class="flex-between" style="margin-bottom:16px">
-      <div class="flex-wrap">
-        <button class="btn ${commishNine==='front'?'btn-primary':'btn-ghost'}" onclick="commishNine='front';commishWinners={};renderCommish()">Front 9</button>
-        <button class="btn ${commishNine==='back'?'btn-primary':'btn-ghost'}" onclick="commishNine='back';commishWinners={};renderCommish()">Back 9</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px"><label style="font-size:13px;color:var(--dim)">$/Entry</label>
-      <input type="number" class="input-sm" value="${commishCost}" onchange="commishCost=+this.value;renderCommish()"></div>
-    </div>
-    <div style="font-size:14px;font-weight:600;margin-bottom:8px">Select Players:</div>
-    <div class="flex-wrap-sm" style="margin-bottom:12px">`;
-  state.golfers.forEach(g => {
-    const isIn = commishPlayers.includes(g.id);
-    html += `<button class="chip${isIn?' active':''}" onclick="toggleCommishPlayer('${g.id}')">${g.name}</button>`;
-  });
-  html += '</div>';
-
-  if (commishPlayers.length) {
-    html += `<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--dim)">Mark who paid:</div><div class="flex-wrap" style="margin-bottom:20px">`;
-    commishPlayers.forEach(id => {
-      const g=state.golfers.find(g=>g.id===id);
-      html += `<label class="checkbox"><div class="checkbox-box${commishPaid[id]?' checked':''}" onclick="commishPaid['${id}']=!commishPaid['${id}'];renderCommish()"></div>${g?.name}</label>`;
-    });
-    html += '</div>';
-
-    html += '<div class="grid-auto-md" style="margin-bottom:16px">';
-    cats.forEach(cat => {
-      let opts = '<option value="">Select winner...</option>';
-      commishPlayers.forEach(id => { const g=state.golfers.find(g=>g.id===id); opts += `<option value="${id}"${commishWinners[cat]===id?' selected':''}>${g?.name}</option>`; });
-      html += `<div class="cat-card"><div class="cat-title">${cat}</div>
-        <select style="width:100%" onchange="commishWinners['${cat}']=this.value;renderCommish()">${opts}</select>
-        ${commishWinners[cat]?`<div class="cat-payout">Wins $${perCat.toFixed(2)}</div>`:''}
-      </div>`;
-    });
-    html += '</div>';
-
-    html += `<div class="grid-auto">
-      <div class="stat-box"><div class="stat-val gold">$${pot.toFixed(2)}</div><div class="stat-label">Total Pot</div></div>
-      <div class="stat-box"><div class="stat-val">${pc}/${commishPlayers.length}</div><div class="stat-label">Paid</div></div>
-      <div class="stat-box"><div class="stat-val">$${perCat.toFixed(2)}</div><div class="stat-label">Per Category</div></div>
-    </div>`;
-
-    if (Object.values(commishWinners).some(Boolean)) {
-      html += '<div class="card" style="margin-top:16px"><div class="card-title">💵 Payouts</div>';
-      cats.forEach(cat => {
-        if (!commishWinners[cat]) return;
-        const g=state.golfers.find(g=>g.id===commishWinners[cat]);
-        html += `<div class="payout-row"><span>${cat}</span><span><strong style="color:var(--accent)">${g?.name}</strong> – <span style="color:var(--gold)">$${perCat.toFixed(2)}</span></span></div>`;
-      });
-      html += '</div>';
-    }
-  }
-  html += '</div>';
-  document.getElementById('page-commish').innerHTML = html;
-}
-
-function toggleCommishPlayer(id) {
-  const idx=commishPlayers.indexOf(id);
-  if(idx>=0)commishPlayers.splice(idx,1);else commishPlayers.push(id);
-  renderCommish();
-}
-
-// ─── ADMIN PAGE ──────────────────────────────────────────────
-function renderAdmin() {
-  let html = `<div class="card"><div class="card-title">⚙️ League Settings</div>
-    <div class="grid-2">
-      <div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season Start (Wednesday)</label>
-      <input type="date" value="${state.settings.startDate}" onchange="state.settings.startDate=this.value;saveSettings()"></div>
-      <div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season End (Wednesday)</label>
-      <input type="date" value="${state.settings.endDate}" onchange="state.settings.endDate=this.value;saveSettings()"></div>
-    </div>
-    <div style="margin-top:12px" class="flex-wrap">
-      <button class="btn btn-primary" onclick="adminGenWeeks()">Generate Weekly Schedule</button>
-      ${state.weeks.length?`<span style="font-size:13px;color:var(--dim)">${state.weeks.length} weeks</span>`:''}
-    </div>
-    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <label style="font-size:13px;color:var(--dim)">Admin Password:</label>
-      <input class="input-lg" value="${state.settings.adminPassword}" onchange="state.settings.adminPassword=this.value;saveSettings()">
-    </div>
-  </div>`;
-
-  // Golfer management
-  html += `<div class="card"><div class="card-title">🏌️ Manage Golfers</div>
-    <div class="flex-wrap" style="margin-bottom:20px">
-      <input id="new-name" placeholder="Golfer name" style="flex:1;min-width:150px" onkeydown="if(event.key==='Enter')adminAddGolfer()">
-      <input id="new-hcp" type="number" placeholder="Prior HCP" style="width:120px" min="0" max="15">
-      <button class="btn btn-primary" onclick="adminAddGolfer()">+ Add Golfer</button>
-    </div>
-    <div class="overflow-x"><table><thead><tr><th>Name</th><th>Prior HCP</th><th>Current HCP</th><th>Dues</th><th>Actions</th></tr></thead><tbody>`;
-  state.golfers.forEach(g => {
-    const hcp = effHcp(g, state.weeks);
-    html += `<tr>
-      <td style="font-weight:600">${g.name}</td>
-      <td>${g.priorHcp!=null?g.priorHcp:'-'}</td>
-      <td><span class="badge badge-gold">${hcp}</span></td>
-      <td><label class="checkbox"><div class="checkbox-box${g.paidDues?' checked':''}" onclick="adminToggleDues('${g.id}')"></div>${g.paidDues?'Paid':'Unpaid'}</label></td>
-      <td><div class="flex-wrap">
-        <button class="btn btn-ghost btn-sm" onclick="adminEditGolfer('${g.id}')">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="adminRemoveGolfer('${g.id}')">✕</button>
-      </div></td></tr>`;
-  });
-  html += `</tbody></table></div>
-    <div style="margin-top:12px;font-size:13px;color:var(--dim)">${state.golfers.length} golfer${state.golfers.length!==1?'s':''} registered</div>
-  </div>`;
-
-  html += `<div class="card danger-zone"><div class="card-title">⚠️ Danger Zone</div>
-    <button class="btn btn-danger" onclick="adminReset()">Reset All League Data</button>
-    <div style="font-size:12px;color:var(--dim);margin-top:8px">Permanently deletes everything.</div>
-  </div>`;
-
-  document.getElementById('page-admin').innerHTML = html;
-}
-
-function adminGenWeeks() {
-  if (!state.settings.startDate||!state.settings.endDate) return alert('Set dates first');
-  const nw = weeksBetween(state.settings.startDate, state.settings.endDate);
-  state.weeks = nw.map(w => { const ex=state.weeks.find(e=>e.wn===w.wn); return ex||w; });
-  saveWeeks();
-}
-
-function adminAddGolfer() {
-  const name = document.getElementById('new-name').value.trim();
-  const hcpVal = document.getElementById('new-hcp').value;
-  if (!name) return;
-  state.golfers.push({ id:genId(), name, paidDues:false, priorHcp:hcpVal!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(hcpVal)||0)):null });
-  saveGolfers();
-  document.getElementById('new-name').value = '';
-  document.getElementById('new-hcp').value = '';
-}
-
-function adminRemoveGolfer(id) {
-  if (!confirm('Remove this golfer?')) return;
-  state.golfers = state.golfers.filter(g=>g.id!==id);
-  saveGolfers();
-}
-
-function adminToggleDues(id) {
-  const g = state.golfers.find(g=>g.id===id);
-  if (g) { g.paidDues = !g.paidDues; saveGolfers(); }
-}
-
-function adminEditGolfer(id) {
-  const g = state.golfers.find(g=>g.id===id);
-  if (!g) return;
-  const newName = prompt('Golfer name:', g.name);
-  if (newName===null) return;
-  const newHcp = prompt('Prior handicap (blank for none):', g.priorHcp!=null?g.priorHcp:'');
-  if (newHcp===null) return;
-  g.name = newName.trim() || g.name;
-  g.priorHcp = newHcp!=='' ? Math.min(MAX_HANDICAP,Math.max(0,parseInt(newHcp)||0)) : null;
-  saveGolfers();
-}
-
-function adminReset() {
-  if (!confirm('Reset ALL league data?')) return;
-  if (!confirm('Are you absolutely sure?')) return;
-  db.ref('league').set(null);
-  state = { golfers:[], weeks:[], settings:{startDate:'',endDate:'',adminPassword:'golf2026'}, tournament:null };
-}
-
-// ─── Init ────────────────────────────────────────────────────
-loadData();
-</script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
