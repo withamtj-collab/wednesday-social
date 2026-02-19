@@ -19,7 +19,26 @@ function svSH(){sv('scrambleHistory',S.scrambleHistory.reduce((o,s,i)=>{o[i]=s;r
 function wksBetween(s,e){if(!s||!e)return[];const ws=[];let d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00'),i=1;while(d<=end){ws.push({wn:i,date:d.toISOString().split('T')[0],nine:'front',scores:{},noShows:{},matchups:[],isScramble:false,scrambleTeams:[],scrambleExcluded:[]});d.setDate(d.getDate()+7);i++;}return ws;}
 function calcHcp(scores,weeks){if(!scores.length)return 0;let t=0,c=0;scores.forEach(({wn,score})=>{const w=weeks.find(x=>x.wn===wn);if(!w||!score)return;t+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR));c++;});return c?Math.min(MAX_HANDICAP,Math.round(t/c)):0;}
 function gSc(gid,wks){return(wks||S.weeks).filter(w=>w.scores&&w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));}
-function eHcp(g,wks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,wks||S.weeks);}
+// Handicap updates every 3 completed weeks: uses scores only from weeks up to the latest 3-week checkpoint
+function completedWeeks(){return S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;}
+function hcpCutoff(){const cw=completedWeeks();const checkpoint=Math.floor(cw/3)*3;return checkpoint;}
+function gScHcp(gid){
+  // Get completed weeks in order, take only up to the latest 3-week checkpoint
+  const played=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0&&w.scores[gid]&&!(w.noShows&&w.noShows[gid]));
+  const allPlayed=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0);
+  const cp=Math.floor(allPlayed.length/3)*3;
+  if(cp===0)return[];
+  // Only use scores from the first cp completed weeks
+  const cutoffWks=allPlayed.slice(0,cp);
+  return cutoffWks.filter(w=>w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));
+}
+function eHcp(g,wks){
+  // If wks is explicitly passed (for specific week subsets like tournament seeding), use all scores in that range
+  if(wks&&wks!==S.weeks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,wks);}
+  // Otherwise use 3-week checkpoint handicap
+  const s=gScHcp(g.id);
+  return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,S.weeks);
+}
 function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;const m=(wk.matchups||[]).find(m=>m.g1===gid||m.g2===gid);if(!m||!m.result)return;if(m.result==='tie')t++;else if(m.result===gid)w++;else l++;});return{w,l,t};}
 function gN(id){return S.golfers.find(g=>g.id===id)?.name||'TBD';}
 function regW(){return Math.max(0,S.weeks.length-TOURNEY_WEEKS);}
@@ -59,7 +78,9 @@ function renderStandings(){
   const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{...g,rec,hcp,rounds:sc.length,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
   const low=data.filter(g=>g.rounds>0).sort((a,b)=>a.hcp-b.hcp)[0];
   const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
-  let h='<div class="grid-auto" style="margin-bottom:20px"><div class="stat-box"><div class="stat-val">'+S.golfers.length+'</div><div class="stat-label">Golfers</div></div><div class="stat-box"><div class="stat-val">'+wp+'</div><div class="stat-label">Weeks Played</div></div><div class="stat-box"><div class="stat-val gold">'+(low?low.name+' ('+low.hcp+')':'-')+'</div><div class="stat-label">Low Handicap</div></div></div>';
+  const cp=hcpCutoff();const nextUp=cp+3;
+  let h='<div class="grid-auto" style="margin-bottom:20px"><div class="stat-box"><div class="stat-val">'+S.golfers.length+'</div><div class="stat-label">Golfers</div></div><div class="stat-box"><div class="stat-val">'+wp+'</div><div class="stat-label">Weeks Played</div></div><div class="stat-box"><div class="stat-val gold">'+(low?low.name+' ('+low.hcp+')':'-')+'</div><div class="stat-label">Low Handicap</div></div><div class="stat-box"><div class="stat-val">'+(cp>0?'Wk '+cp:'—')+'</div><div class="stat-label">HCP Based On</div></div></div>';
+  if(wp>0)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">📊 Handicaps update every 3 weeks played (using scores through week '+cp+'). Next update after week '+nextUp+'.</div>';
   if(S.settings.startDate&&S.settings.endDate)h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Season: '+fD(S.settings.startDate)+' – '+fD(S.settings.endDate)+' | '+S.weeks.length+' weeks ('+rw+' regular + '+(S.weeks.length-rw)+' tournament)</div>';
   h+='<div class="card"><div class="card-title">📊 League Standings</div><div class="overflow-x"><table><thead><tr><th>#</th><th>Golfer</th><th>W</th><th>L</th><th>T</th><th>Win%</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>';
   data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="color:var(--accent)">'+g.rec.w+'</td><td style="color:var(--danger)">'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td><td><span class="badge badge-gold">'+g.hcp+'</span></td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
@@ -129,29 +150,55 @@ function genMatch(){
   const excl=wk.matchupExcluded||[];
   const pl=S.golfers.filter(g=>!excl.includes(g.id));
   if(pl.length<2){alert('Need at least 2 players');return;}
-  // Collect all prior matchup pairs this season (as sorted id strings)
+  // Collect all prior non-tournament matchup pairs this season
+  const rw=regW();
   const priorPairs=new Set();
-  S.weeks.forEach(w=>{if(w.wn===mWk||!w.matchups)return;(w.matchups||[]).forEach(m=>{if(m.g1&&m.g2)priorPairs.add([m.g1,m.g2].sort().join(':'));});});
-  // Score a set of matchups: count how many are repeats
-  function scoreMatchups(ms){let repeats=0;ms.forEach(m=>{if(m.g1&&m.g2&&priorPairs.has([m.g1,m.g2].sort().join(':')))repeats++;});return repeats;}
-  // Generate one random set of matchups
-  function makeMatchups(){
-    const shuffled=[...pl].sort(()=>Math.random()-.5);
-    const ms=[];
-    for(let i=0;i<shuffled.length-1;i+=2)ms.push({g1:shuffled[i].id,g2:shuffled[i+1].id,result:null});
-    if(shuffled.length%2===1)ms.push({g1:shuffled[shuffled.length-1].id,g2:null,result:shuffled[shuffled.length-1].id});
-    return ms;
+  S.weeks.forEach(w=>{if(w.wn===mWk||w.wn>rw||!w.matchups)return;(w.matchups||[]).forEach(m=>{if(m.g1&&m.g2)priorPairs.add([m.g1,m.g2].sort().join(':'));});});
+  const pairKey=(a,b)=>[a,b].sort().join(':');
+  const isUsed=(a,b)=>priorPairs.has(pairKey(a,b));
+
+  // Greedy matching with backtracking: build pairs one at a time
+  function buildMatchups(ids){
+    if(ids.length<=1){
+      // Remaining player gets a bye
+      if(ids.length===1)return[{g1:ids[0],g2:null,result:ids[0]}];
+      return[];
+    }
+    // Pick the first player, try to pair with each remaining (random order)
+    const first=ids[0];
+    const rest=ids.slice(1);
+    const candidates=[...rest].sort(()=>Math.random()-.5);
+    for(const partner of candidates){
+      if(!isUsed(first,partner)){
+        const remaining=rest.filter(id=>id!==partner);
+        const subResult=buildMatchups(remaining);
+        if(subResult!==null)return[{g1:first,g2:partner,result:null},...subResult];
+      }
+    }
+    // If no unused partner found, try any partner (fallback - shouldn't happen with 40 players)
+    for(const partner of candidates){
+      const remaining=rest.filter(id=>id!==partner);
+      const subResult=buildMatchups(remaining);
+      if(subResult!==null)return[{g1:first,g2:partner,result:null},...subResult];
+    }
+    return null;
   }
-  // Try many times to find matchups with zero repeats
-  let best=null,bestScore=Infinity;
-  for(let att=0;att<500;att++){
-    const ms=makeMatchups();
-    const sc=scoreMatchups(ms);
-    if(sc<bestScore){bestScore=sc;best=ms;}
-    if(sc===0)break;
+
+  // Try several random orderings to get good results
+  let best=null,bestRepeats=Infinity;
+  for(let att=0;att<50;att++){
+    const shuffled=[...pl].map(g=>g.id).sort(()=>Math.random()-.5);
+    const result=buildMatchups(shuffled);
+    if(result){
+      const repeats=result.filter(m=>m.g2&&isUsed(m.g1,m.g2)).length;
+      if(repeats<bestRepeats){bestRepeats=repeats;best=result;}
+      if(repeats===0)break;
+    }
   }
-  wk.matchups=best;
-  if(bestScore>0)alert('Note: Could not avoid all repeat matchups ('+bestScore+' repeat'+(bestScore>1?'s':'')+').\nWith '+pl.length+' players over many weeks, some repeats are unavoidable.');
+  if(best){
+    wk.matchups=best;
+    if(bestRepeats>0)alert('Note: '+bestRepeats+' repeat matchup'+(bestRepeats>1?'s were':' was')+' unavoidable this week.');
+  }else{alert('Could not generate matchups.');}
   svW();
 }
 function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
