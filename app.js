@@ -39,7 +39,8 @@ function eHcp(g,wks){
   const s=gScHcp(g.id);
   return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,S.weeks);
 }
-function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;const m=(wk.matchups||[]).find(m=>m.g1===gid||m.g2===gid);if(!m||!m.result)return;if(m.result==='tie')t++;else if(m.result===gid)w++;else l++;});return{w,l,t};}
+function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;(wk.matchups||[]).forEach(m=>{// Skip shadow matches for the shadow opponent (g2)
+if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;if(!m.result)return;if(m.result==='tie')t++;else if(m.result===gid)w++;else l++;});});return{w,l,t};}
 function gN(id){return S.golfers.find(g=>g.id===id)?.name||'TBD';}
 function regW(){return Math.max(0,S.weeks.length-TOURNEY_WEEKS);}
 function fD(d){return new Date(d+'T12:00:00').toLocaleDateString();}
@@ -140,7 +141,8 @@ function renderMatchups(){
   if(ms.length){h+='<div class="grid-auto-lg">';
     const ns=wk?.noShows||{};
     ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
-      h+='<div class="match-card"><div class="match-label">Match '+(i+1)+'</div><div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
+      const shadowTag=m.isShadow?'<div style="font-size:10px;color:#60a5fa;margin-bottom:4px">👤 Shadow Match — result counts for '+gN(m.g1)+' only</div>':'';
+      h+='<div class="match-card"'+(m.isShadow?' style="border-color:rgba(96,165,250,.4);border-style:dashed"':'')+'><div class="match-label">Match '+(i+1)+'</div>'+shadowTag+'<div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
       (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>'+(m.result?'<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>':'')+'</div>';});
     h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Select players above, then click 🎲 Random Matchups.':'No matchups yet.')+'</div>';}
   h+='</div>';document.getElementById('page-matchups').innerHTML=h;
@@ -150,53 +152,57 @@ function genMatch(){
   const excl=wk.matchupExcluded||[];
   const pl=S.golfers.filter(g=>!excl.includes(g.id));
   if(pl.length<2){alert('Need at least 2 players');return;}
+  const isOdd=pl.length%2===1;
+  // If odd, separate out the odd player and pair the rest evenly, then create shadow match
+  const ids=[...pl].map(g=>g.id);
   // Collect all prior non-tournament matchup pairs this season
   const rw=regW();
   const priorPairs=new Set();
-  S.weeks.forEach(w=>{if(w.wn===mWk||w.wn>rw||!w.matchups)return;(w.matchups||[]).forEach(m=>{if(m.g1&&m.g2)priorPairs.add([m.g1,m.g2].sort().join(':'));});});
+  S.weeks.forEach(w=>{if(w.wn===mWk||w.wn>rw||!w.matchups)return;(w.matchups||[]).forEach(m=>{if(m.g1&&m.g2&&!m.isShadow)priorPairs.add([m.g1,m.g2].sort().join(':'));});});
   const pairKey=(a,b)=>[a,b].sort().join(':');
   const isUsed=(a,b)=>priorPairs.has(pairKey(a,b));
 
-  // Greedy matching with backtracking: build pairs one at a time
-  function buildMatchups(ids){
-    if(ids.length<=1){
-      // Remaining player gets a bye
-      if(ids.length===1)return[{g1:ids[0],g2:null,result:ids[0]}];
-      return[];
-    }
-    // Pick the first player, try to pair with each remaining (random order)
-    const first=ids[0];
-    const rest=ids.slice(1);
+  // Greedy matching with backtracking
+  function buildMatchups(pool){
+    if(pool.length<=1)return pool.length===1?{ms:[],leftover:pool[0]}:{ms:[],leftover:null};
+    if(pool.length===0)return{ms:[],leftover:null};
+    const first=pool[0];
+    const rest=pool.slice(1);
     const candidates=[...rest].sort(()=>Math.random()-.5);
     for(const partner of candidates){
       if(!isUsed(first,partner)){
         const remaining=rest.filter(id=>id!==partner);
-        const subResult=buildMatchups(remaining);
-        if(subResult!==null)return[{g1:first,g2:partner,result:null},...subResult];
+        const sub=buildMatchups(remaining);
+        if(sub!==null)return{ms:[{g1:first,g2:partner,result:null},...sub.ms],leftover:sub.leftover};
       }
     }
-    // If no unused partner found, try any partner (fallback - shouldn't happen with 40 players)
+    // Fallback: allow repeats if necessary
     for(const partner of candidates){
       const remaining=rest.filter(id=>id!==partner);
-      const subResult=buildMatchups(remaining);
-      if(subResult!==null)return[{g1:first,g2:partner,result:null},...subResult];
+      const sub=buildMatchups(remaining);
+      if(sub!==null)return{ms:[{g1:first,g2:partner,result:null},...sub.ms],leftover:sub.leftover};
     }
     return null;
   }
 
-  // Try several random orderings to get good results
   let best=null,bestRepeats=Infinity;
   for(let att=0;att<50;att++){
-    const shuffled=[...pl].map(g=>g.id).sort(()=>Math.random()-.5);
+    const shuffled=[...ids].sort(()=>Math.random()-.5);
     const result=buildMatchups(shuffled);
     if(result){
-      const repeats=result.filter(m=>m.g2&&isUsed(m.g1,m.g2)).length;
+      const repeats=result.ms.filter(m=>m.g2&&isUsed(m.g1,m.g2)).length;
       if(repeats<bestRepeats){bestRepeats=repeats;best=result;}
       if(repeats===0)break;
     }
   }
   if(best){
-    wk.matchups=best;
+    wk.matchups=best.ms;
+    // If odd player left over, create a shadow match against a random already-paired player
+    if(best.leftover){
+      const paired=best.ms.filter(m=>m.g2).flatMap(m=>[m.g1,m.g2]);
+      const shadow=paired[Math.floor(Math.random()*paired.length)];
+      wk.matchups.push({g1:best.leftover,g2:shadow,result:null,isShadow:true});
+    }
     if(bestRepeats>0)alert('Note: '+bestRepeats+' repeat matchup'+(bestRepeats>1?'s were':' was')+' unavoidable this week.');
   }else{alert('Could not generate matchups.');}
   svW();
@@ -336,8 +342,9 @@ function waMatchups(wn){
     const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
     const h1=S.golfers.find(g=>g.id===m.g1),h2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
     const hcp1=h1?eHcp(h1,S.weeks):0,hcp2=h2?eHcp(h2,S.weeks):0;
-    msg+=(i+1)+'. '+n1+' ('+hcp1+') vs '+n2+(h2?' ('+hcp2+')':'')+'\n';
+    msg+=(i+1)+'. '+n1+' ('+hcp1+') vs '+n2+(h2?' ('+hcp2+')':'')+(m.isShadow?' 👤':'')+ '\n';
   });
+  if(wk.matchups.some(m=>m.isShadow))msg+='\n👤 = Shadow match (counts for odd player only)\n';
   msg+='\n🔗 '+siteUrl();
   waShare(msg);
 }
