@@ -460,165 +460,162 @@ function waStandings(){
   const rw=regW();
   const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,hcp,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
   const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
-
+  const nW=14;
   let msg='⛳ *The Wednesday Social*\n📊 *League Standings — Week '+wp+'*\n\n';
   msg+='```\n';
-  // Header
-  const nameW=16;
-  msg+='#  '+'Name'.padEnd(nameW)+'  W  L  T  Win%  HCP  Avg\n';
-  msg+='—'.repeat(nameW+34)+'\n';
+  msg+=' # '+'Name'.padEnd(nW)+' W  L  T  Pct  HCP  Avg\n';
+  msg+='—'.repeat(nW+32)+'\n';
   data.forEach((g,i)=>{
-    const rank=String(i+1).padStart(2);
-    const name=g.name.length>nameW?g.name.substring(0,nameW-1)+'…':g.name.padEnd(nameW);
-    const w=String(g.rec.w).padStart(2);
-    const l=String(g.rec.l).padStart(2);
-    const t=String(g.rec.t).padStart(2);
-    const pct=(g.pct*100).toFixed(0).padStart(3)+'%';
-    const hcp=String(g.hcp).padStart(3);
-    const avg=String(g.avg).padStart(5);
-    msg+=rank+' '+name+' '+w+' '+l+' '+t+' '+pct+'  '+hcp+' '+avg+'\n';
+    const nm=g.name.length>nW?g.name.substring(0,nW-1)+'…':g.name.padEnd(nW);
+    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+String(g.hcp).padStart(4)+String(g.avg).padStart(6)+'\n';
   });
-  msg+='```\n';
-  msg+='\n🔗 Full standings: '+siteUrl();
+  msg+='```\n\n🔗 '+siteUrl();
   waShare(msg);
 }
 
-// Share: Weekly matchups set
+// Share: Weekly matchups as table
 function waMatchups(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.matchups?.length)return;
-  let msg='⛳ *The Wednesday Social*\n📅 Week '+wn+' — '+fD(wk.date)+'\n'+(wk.nine==='front'?'Front 9':'Back 9')+'\n\n⚔️ *This Week\'s Matchups:*\n';
+  const nW=14;
+  let msg='⛳ *The Wednesday Social*\n⚔️ *Week '+wn+' Matchups — '+fD(wk.date)+'*\n'+(wk.nine==='front'?'Front 9':'Back 9')+'\n\n';
+  msg+='```\n';
+  msg+=' # '+'Player 1'.padEnd(nW)+' HCP  '+'Player 2'.padEnd(nW)+' HCP\n';
+  msg+='—'.repeat(nW*2+16)+'\n';
   wk.matchups.forEach((m,i)=>{
     const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
-    const h1=S.golfers.find(g=>g.id===m.g1),h2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
-    const hcp1=h1?eHcp(h1,S.weeks):0,hcp2=h2?eHcp(h2,S.weeks):0;
-    msg+=(i+1)+'. '+n1+' ('+hcp1+') vs '+n2+(h2?' ('+hcp2+')':'')+(m.isShadow?' 👤':'')+ '\n';
+    const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
+    const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
+    const nm1=n1.length>nW?n1.substring(0,nW-1)+'…':n1.padEnd(nW);
+    const nm2=n2.length>nW?n2.substring(0,nW-1)+'…':n2.padEnd(nW);
+    const sh=m.isShadow?' *':'  ';
+    msg+=String(i+1).padStart(2)+' '+nm1+String(h1).padStart(3)+'  '+nm2+(g2?String(h2).padStart(3):'   ')+sh+'\n';
   });
-  if(wk.matchups.some(m=>m.isShadow))msg+='\n👤 = Shadow match (counts for odd player only)\n';
-  msg+='\n🔗 '+siteUrl();
+  msg+='```';
+  if(wk.matchups.some(m=>m.isShadow))msg+='\n* = Shadow match';
+  msg+='\n\n🔗 '+siteUrl();
   waShare(msg);
 }
 
-// Share: Week results recap (auto-computed from net scores)
+// Share: Week results as table with win/tie markers
 function waResultsCalc(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
   const par=wk.nine==='front'?FRONT_PAR:BACK_PAR;
   const nsh=wk.noShows||{};
-  let msg='⛳ *The Wednesday Social*\n📅 Week '+wn+' Results — '+fD(wk.date)+'\n'+(wk.nine==='front'?'Front 9':'Back 9')+' (Par '+par+')\n\n';
+  const nW=14;
+  let msg='⛳ *The Wednesday Social*\n📋 *Week '+wn+' Results — '+fD(wk.date)+'*\n'+(wk.nine==='front'?'Front 9':'Back 9')+' (Par '+par+')\n\n';
 
   if(wk.matchups?.length){
-    msg+='⚔️ *Match Results:*\n';
+    msg+='```\n';
+    msg+='    '+'Player'.padEnd(nW)+' Scr Net     '+'Player'.padEnd(nW)+' Scr Net\n';
+    msg+='—'.repeat(nW*2+26)+'\n';
     wk.matchups.forEach((m,i)=>{
       const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
-      if(!m.g2){msg+=(i+1)+'. '+n1+' — BYE\n';return;}
-      const ns1=nsh[m.g1],ns2=nsh[m.g2];
-      const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];
-      const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
+      const ns1=nsh[m.g1],ns2=m.g2?nsh[m.g2]:false;
+      const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;
+      const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
       const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
       const net1=(!ns1&&s1)?s1-h1:null,net2=(!ns2&&s2)?s2-h2:null;
       // Compute winner
-      let w='TBD';
-      if(ns1&&ns2)w='TIE';
-      else if(ns1)w=n2;
-      else if(ns2)w=n1;
-      else if(net1!=null&&net2!=null){w=net1<net2?n1:net2<net1?n2:'TIE';}
-      const shadow=m.isShadow?' 👤':'';
-      if(ns1||ns2){msg+=(i+1)+'. '+n1+(ns1?' (NS)':' '+s1)+' vs '+n2+(ns2?' (NS)':' '+s2)+' → *'+w+'*'+shadow+'\n';}
-      else{msg+=(i+1)+'. '+n1+(s1?' ('+s1+'/net '+(net1||'?')+')':'')+' vs '+n2+(s2?' ('+s2+'/net '+(net2||'?')+')':'')+' → *'+w+'*'+shadow+'\n';}
-    });
-    if(wk.matchups.some(m=>m.isShadow))msg+='\n👤 = Shadow match\n';
-    msg+='\n';
-  }
-
-  const rw=regW();
-  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,pct,hcp:eHcp(g,S.weeks)};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
-  msg+='📊 *Standings (Top 10):*\n';
-  data.slice(0,10).forEach((g,i)=>{msg+=(i+1)+'. '+g.name+' ('+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+') HCP:'+g.hcp+'\n';});
-
-  msg+='\n🔗 Full standings: '+siteUrl();
-  waShare(msg);
-}
-
-// Share: Week results recap (from stored results)
-function waResults(wn){
-  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
-  const par=wk.nine==='front'?FRONT_PAR:BACK_PAR;
-  const ns=wk.noShows||{};
-  let msg='⛳ *The Wednesday Social*\n📅 Week '+wn+' Results — '+fD(wk.date)+'\n'+(wk.nine==='front'?'Front 9':'Back 9')+' (Par '+par+')\n\n';
-
-  // Match results
-  if(wk.matchups?.length){
-    msg+='⚔️ *Match Results:*\n';
-    wk.matchups.forEach((m,i)=>{
-      const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
-      if(!m.g2){msg+=(i+1)+'. '+n1+' — BYE\n';return;}
-      const ns1=ns[m.g1],ns2=ns[m.g2];
-      if(ns1||ns2){
-        const w=m.result==='tie'?'TIE':gN(m.result);
-        msg+=(i+1)+'. '+n1+(ns1?' (NS)':'')+' vs '+n2+(ns2?' (NS)':'')+' → *'+w+'*\n';
+      let winner=null;
+      if(!m.g2)winner=m.g1;
+      else if(ns1&&ns2)winner='tie';
+      else if(ns1)winner=m.g2;
+      else if(ns2)winner=m.g1;
+      else if(net1!=null&&net2!=null){winner=net1<net2?m.g1:net2<net1?m.g2:'tie';}
+      const w1=winner===m.g1,w2=m.g2&&winner===m.g2,tie=winner==='tie';
+      // Markers: ✓ win, ═ tie, ✗ loss
+      const mk1=w1?'✓ ':tie?'═ ':'  ';
+      const mk2=w2?' ✓':tie?' ═':'  ';
+      const nm1=n1.length>nW?n1.substring(0,nW-1)+'…':n1.padEnd(nW);
+      const sc1=ns1?' NS':s1?String(s1).padStart(3):'  -';
+      const nt1=ns1?'   ':net1!=null?String(net1).padStart(3):'  -';
+      if(!m.g2){
+        msg+=mk1+String(i+1).padStart(2)+' '+nm1+sc1+' '+nt1+'  BYE\n';
       }else{
-        const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];
-        const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
-        const net1=s1&&g1?s1-eHcp(g1,S.weeks):null,net2=s2&&g2?s2-eHcp(g2,S.weeks):null;
-        const w=m.result==='tie'?'TIE':m.result?gN(m.result):'TBD';
-        msg+=(i+1)+'. '+n1+(s1?' ('+s1+'/net '+(net1||'?')+')':'')+' vs '+n2+(s2?' ('+s2+'/net '+(net2||'?')+')':'')+' → *'+w+'*\n';
+        const nm2=n2.length>nW?n2.substring(0,nW-1)+'…':n2.padEnd(nW);
+        const sc2=ns2?' NS':s2?String(s2).padStart(3):'  -';
+        const nt2=ns2?'   ':net2!=null?String(net2).padStart(3):'  -';
+        const sh=m.isShadow?'*':'';
+        msg+=mk1+String(i+1).padStart(2)+' '+nm1+sc1+' '+nt1+'  '+nm2+sc2+' '+nt2+mk2+sh+'\n';
       }
     });
-    msg+='\n';
+    msg+='```\n';
+    msg+='✓=Win ═=Tie';
+    if(wk.matchups.some(m=>m.isShadow))msg+=' *=Shadow';
+    msg+='\n\n';
   }
 
-  // Top 5 standings
+  // Top 10 standings table
   const rw=regW();
   const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,pct,hcp:eHcp(g,S.weeks)};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
-  msg+='📊 *Standings (Top 10):*\n';
-  data.slice(0,10).forEach((g,i)=>{msg+=(i+1)+'. '+g.name+' ('+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+') HCP:'+g.hcp+'\n';});
-
-  msg+='\n🔗 Full standings: '+siteUrl();
+  msg+='📊 *Top 10 Standings:*\n```\n';
+  msg+=' # '+'Name'.padEnd(nW)+' W  L  T  Pct  HCP\n';
+  msg+='—'.repeat(nW+26)+'\n';
+  data.slice(0,10).forEach((g,i)=>{
+    const nm=g.name.length>nW?g.name.substring(0,nW-1)+'…':g.name.padEnd(nW);
+    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+String(g.hcp).padStart(4)+'\n';
+  });
+  msg+='```\n\n🔗 '+siteUrl();
   waShare(msg);
 }
 
-// Share: Scramble teams
+// Share: Scramble teams as table
 function waScramble(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.scrambleTeams?.length)return;
+  const nW=14;
   let msg='⛳ *The Wednesday Social*\n🏌️ *Scramble — Week '+wn+'* ('+fD(wk.date)+')\n\n';
   wk.scrambleTeams.forEach((team,ti)=>{
     const th=team.reduce((a,p)=>a+p.hcp,0);
-    msg+='*Team '+(ti+1)+'* (HCP: '+th+')\n';
-    team.forEach(p=>{msg+='  '+p.tier+': '+p.name+' ('+p.hcp+')\n';});
-    msg+='\n';
+    msg+='*Team '+(ti+1)+'* (HCP: '+th+')\n```\n';
+    msg+='Tier '+'Name'.padEnd(nW)+' HCP\n';
+    team.forEach(p=>{
+      const nm=p.name.length>nW?p.name.substring(0,nW-1)+'…':p.name.padEnd(nW);
+      msg+=' '+p.tier+'   '+nm+String(p.hcp).padStart(3)+'\n';
+    });
+    msg+='```\n\n';
   });
   msg+='🔗 '+siteUrl();
   waShare(msg);
 }
 
-// Share: Tournament bracket
+// Share: Tournament bracket as table
 function waTournament(){
   const t=S.tournament;if(!t)return;
   const rw=regW();
   const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
   const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
+  const nW=14;
 
-  let msg='⛳ *The Wednesday Social*\n🏆 *Tournament Bracket Update*\n\n';
+  let msg='⛳ *The Wednesday Social*\n🏆 *Tournament Bracket*\n\n';
 
   for(let r=1;r<=t.totalRounds;r++){
     const rm=t.matches.filter(m=>m.round===r);
     const lbl=r===t.totalRounds?'Finals':r===t.totalRounds-1&&t.totalRounds>2?'Semis':'Round '+r;
     const hasData=rm.some(m=>m.g1||m.g2||m.isBye);
     if(!hasData)continue;
-    msg+='*'+lbl+':*\n';
+    msg+='*'+lbl+':*\n```\n';
+    msg+='Sd '+'Player 1'.padEnd(nW)+' Sd '+'Player 2'.padEnd(nW)+' Winner\n';
+    msg+='—'.repeat(nW*2+24)+'\n';
     rm.forEach(m=>{
-      if(m.isBye){msg+='  ('+gs(m.winner)+') '+gN(m.winner)+' — BYE\n';}
-      else{
-        const n1=m.g1?'('+gs(m.g1)+') '+gN(m.g1):'TBD';
-        const n2=m.g2?'('+gs(m.g2)+') '+gN(m.g2):'TBD';
-        const w=m.winner?'→ *'+gN(m.winner)+'*':'';
-        msg+='  '+n1+' vs '+n2+' '+w+'\n';
+      if(m.isBye){
+        const nm=gN(m.winner);const nmP=nm.length>nW?nm.substring(0,nW-1)+'…':nm.padEnd(nW);
+        msg+=String(gs(m.winner)).padStart(2)+' '+nmP+'   '+'BYE'.padEnd(nW)+' '+nmP+'\n';
+      }else{
+        const n1=m.g1?gN(m.g1):'TBD',n2=m.g2?gN(m.g2):'TBD';
+        const nm1=n1.length>nW?n1.substring(0,nW-1)+'…':n1.padEnd(nW);
+        const nm2=n2.length>nW?n2.substring(0,nW-1)+'…':n2.padEnd(nW);
+        const sd1=m.g1?String(gs(m.g1)).padStart(2):'  ';
+        const sd2=m.g2?String(gs(m.g2)).padStart(2):'  ';
+        const win=m.winner?gN(m.winner):'';
+        const winP=win.length>nW?win.substring(0,nW-1)+'…':win;
+        msg+=sd1+' '+nm1+sd2+' '+nm2+' '+winP+'\n';
       }
     });
-    msg+='\n';
+    msg+='```\n\n';
   }
 
   if(t.champion)msg+='🏆 *Champion: '+t.champion+'*\n\n';
-  msg+='🔗 Full bracket: '+siteUrl();
+  msg+='🔗 '+siteUrl();
   waShare(msg);
 }
 
