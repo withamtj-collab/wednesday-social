@@ -68,6 +68,13 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 .payout-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
 .row-highlight{background:rgba(34,99,61,.09)}.danger-zone{border-color:rgba(239,68,68,.27)}
 .scramble-team{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.result-win{color:var(--accent);font-weight:700}
+.result-loss{color:var(--danger);font-weight:600;opacity:.7}
+.result-tie{color:var(--gold);font-weight:700}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.result-row:last-child{border-bottom:none}
+.result-row.win-row{background:rgba(74,222,128,.06)}
+.result-row.tie-row{background:rgba(251,191,36,.06)}
 .scramble-player{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(26,58,37,.5)}
 .scramble-player:last-child{border-bottom:none}
 .scramble-tier{font-weight:700;font-size:12px;width:24px;text-align:center}
@@ -95,7 +102,7 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="doLogin()">Login</button><button class="btn btn-ghost" onclick="closeLogin()">Cancel</button></div></div></div>
 <main class="container">
 <div id="announcement"></div>
-<div id="page-standings" class="page active"></div><div id="page-scores" class="page"></div><div id="page-matchups" class="page"></div>
+<div id="page-standings" class="page active"></div><div id="page-results" class="page"></div><div id="page-scores" class="page"></div><div id="page-matchups" class="page"></div>
 <div id="page-scramble" class="page"></div><div id="page-tournament" class="page"></div><div id="page-skins" class="page"></div>
 <div id="page-johnnys" class="page"></div><div id="page-admin" class="page"></div>
 </main></div>
