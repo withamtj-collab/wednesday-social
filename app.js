@@ -39,8 +39,20 @@ function eHcp(g,wks){
   const s=gScHcp(g.id);
   return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,S.weeks);
 }
-function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;(wk.matchups||[]).forEach(m=>{// Skip shadow matches for the shadow opponent (g2)
-if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;if(!m.result)return;if(m.result==='tie')t++;else if(m.result===gid)w++;else l++;});});return{w,l,t};}
+function getMatchWinner(m,wk){
+  if(m.result)return m.result;
+  if(!m.g2)return m.g1;
+  const ns=wk.noShows||{},ns1=ns[m.g1],ns2=ns[m.g2];
+  if(ns1&&ns2)return'tie';if(ns1)return m.g2;if(ns2)return m.g1;
+  const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return null;
+  const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
+  const n1=s1-(g1?eHcp(g1,S.weeks):0),n2=s2-(g2?eHcp(g2,S.weeks):0);
+  return n1<n2?m.g1:n2<n1?m.g2:'tie';
+}
+function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;(wk.matchups||[]).forEach(m=>{
+if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
+const winner=getMatchWinner(m,wk);if(!winner)return;
+if(winner==='tie')t++;else if(winner===gid)w++;else l++;});});return{w,l,t};}
 function gN(id){return S.golfers.find(g=>g.id===id)?.name||'TBD';}
 function regW(){return Math.max(0,S.weeks.length-TOURNEY_WEEKS);}
 function fD(d){return new Date(d+'T12:00:00').toLocaleDateString();}
@@ -85,7 +97,7 @@ function renderStandings(){
   if(S.settings.startDate&&S.settings.endDate)h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Season: '+fD(S.settings.startDate)+' – '+fD(S.settings.endDate)+' | '+S.weeks.length+' weeks ('+rw+' regular + '+(S.weeks.length-rw)+' tournament)</div>';
   h+='<div class="card"><div class="card-title">📊 League Standings</div><div class="overflow-x"><table><thead><tr><th>#</th><th>Golfer</th><th>W</th><th>L</th><th>T</th><th>Win%</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>';
   data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="color:var(--accent)">'+g.rec.w+'</td><td style="color:var(--danger)">'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td><td><span class="badge badge-gold">'+g.hcp+'</span></td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
-  h+='</tbody></table></div></div>';
+  h+='</tbody></table></div><div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waStandings()">📱 Share Standings</button></div></div>';
   h+='<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md"><div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">'+(data[0]?.name||'TBD')+'</div>'+(data[0]?'<div class="award-sub">'+data[0].rec.w+'-'+data[0].rec.l+'-'+data[0].rec.t+'</div>':'')+'</div><div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">'+(low?.name||'TBD')+'</div>'+(low?'<div class="award-sub">HCP: '+low.hcp+'</div>':'')+'</div><div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">'+(S.tournament?.champion||'TBD')+'</div></div></div></div>';
   document.getElementById('page-standings').innerHTML=h;
 }
@@ -441,6 +453,34 @@ function waShare(msg){
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile){window.location.href='whatsapp://send?text='+encoded;}
   else{window.open('https://web.whatsapp.com/send?text='+encoded,'_blank');}
+}
+
+// Share: Standings as formatted table
+function waStandings(){
+  const rw=regW();
+  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,hcp,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
+  const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
+
+  let msg='⛳ *The Wednesday Social*\n📊 *League Standings — Week '+wp+'*\n\n';
+  msg+='```\n';
+  // Header
+  const nameW=16;
+  msg+='#  '+'Name'.padEnd(nameW)+'  W  L  T  Win%  HCP  Avg\n';
+  msg+='—'.repeat(nameW+34)+'\n';
+  data.forEach((g,i)=>{
+    const rank=String(i+1).padStart(2);
+    const name=g.name.length>nameW?g.name.substring(0,nameW-1)+'…':g.name.padEnd(nameW);
+    const w=String(g.rec.w).padStart(2);
+    const l=String(g.rec.l).padStart(2);
+    const t=String(g.rec.t).padStart(2);
+    const pct=(g.pct*100).toFixed(0).padStart(3)+'%';
+    const hcp=String(g.hcp).padStart(3);
+    const avg=String(g.avg).padStart(5);
+    msg+=rank+' '+name+' '+w+' '+l+' '+t+' '+pct+'  '+hcp+' '+avg+'\n';
+  });
+  msg+='```\n';
+  msg+='\n🔗 Full standings: '+siteUrl();
+  waShare(msg);
 }
 
 // Share: Weekly matchups set
