@@ -130,25 +130,39 @@ function renderResults(){
       const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;
       const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
       const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
-      const isWin1=m.result===m.g1,isWin2=m.result===m.g2,isTie=m.result==='tie';
-      const rowClass=isTie?' tie-row':(isWin1||isWin2)?' win-row':'';
+      const resolved=!!m.result;
+      const isWin1=m.result===m.g1,isWin2=m.g2&&m.result===m.g2,isTie=m.result==='tie';
       const shadowTag=m.isShadow?'<span style="font-size:10px;color:#60a5fa;margin-left:6px">👤 Shadow</span>':'';
 
-      h+='<div class="result-row'+rowClass+'">';
+      // Row background
+      let rowBg='';
+      if(isTie)rowBg='background:rgba(251,191,36,.12);';
+      else if(isWin1||isWin2)rowBg='background:rgba(74,222,128,.08);';
+
+      // Player name styles
+      const style1=isWin1?'color:#4ade80;font-weight:800;font-size:14px':isTie?'color:#fbbf24;font-weight:700;font-size:14px':resolved?'color:var(--danger);font-weight:400;opacity:.6':'font-weight:600';
+      const style2=isWin2?'color:#4ade80;font-weight:800;font-size:14px':isTie?'color:#fbbf24;font-weight:700;font-size:14px':resolved?'color:var(--danger);font-weight:400;opacity:.6':'font-weight:600';
+
+      h+='<div class="result-row" style="'+rowBg+'">';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px">';
-      h+='<span class="'+(isWin1?'result-win':isTie?'result-tie':'result-loss')+'">'+(g1?.name||'?')+'</span>';
+      h+='<span style="'+style1+'">'+(g1?.name||'?')+(isWin1?' ✅':'')+'</span>';
       if(ns1)h+='<span class="badge badge-danger">NS</span>';
       else if(s1!=null)h+='<span style="font-size:12px;color:var(--dim)">'+s1+(n1!=null?' (net '+n1+')':'')+'</span>';
       h+='</div>';
-      h+='<div style="font-size:12px;color:var(--dim);padding:0 12px">'+(m.result?isTie?'TIE':'':'vs')+'</div>';
+      h+='<div style="font-size:12px;color:var(--dim);padding:0 12px;white-space:nowrap">'+(resolved?(isTie?'🤝 TIE':''):'vs')+'</div>';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:flex-end">';
       if(g2){
         if(ns2)h+='<span class="badge badge-danger">NS</span>';
         else if(s2!=null)h+='<span style="font-size:12px;color:var(--dim)">'+(n2!=null?'(net '+n2+') ':'')+s2+'</span>';
-        h+='<span class="'+(isWin2?'result-win':isTie?'result-tie':'result-loss')+'">'+g2.name+'</span>';
+        h+='<span style="'+style2+'">'+(isWin2?'✅ ':'')+g2.name+'</span>';
       }else{h+='<span style="color:var(--dim)">BYE</span>';}
       h+=shadowTag+'</div></div>';
     });
+    // Share buttons at bottom
+    h+='<div class="flex-wrap" style="margin-top:16px">';
+    h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waMatchups('+resWk+')">📱 Share Matchups</button>';
+    if(hasResults)h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waResults('+resWk+')">📱 Share Results</button>';
+    h+='</div>';
   }else{h+='<div style="text-align:center;padding:30px;color:var(--dim)">No matchups or results for this week.</div>';}
   h+='</div>';
   document.getElementById('page-results').innerHTML=h;
