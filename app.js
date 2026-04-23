@@ -389,7 +389,7 @@ function renderAdmin(){
   h+='<div class="card danger-zone"><div class="card-title">⚠️ Danger Zone</div><button class="btn btn-danger" onclick="aReset()">Reset All League Data</button><div style="font-size:12px;color:var(--dim);margin-top:8px">Permanently deletes everything.</div></div>';
   document.getElementById('page-admin').innerHTML=h;
 }
-function aGenWk(){if(!S.settings.startDate||!S.settings.endDate)return alert('Set dates first');const nw=wksBetween(S.settings.startDate,S.settings.endDate);S.weeks=nw.map(w=>{const ex=S.weeks.find(e=>e.wn===w.wn);return ex||w;});svW();}
+function aGenWk(){if(!S.settings.startDate||!S.settings.endDate)return alert('Set dates first');const nw=wksBetween(S.settings.startDate,S.settings.endDate);S.weeks=nw.map(w=>{const ex=S.weeks.find(e=>e.wn===w.wn);if(ex){ex.date=w.date;return ex;}return w;});svW();}
 function aAdd(){const n=document.getElementById('nn').value.trim(),hv=document.getElementById('nh').value;if(!n)return;S.golfers.push({id:genId(),name:n,paidDues:false,priorHcp:hv!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(hv)||0)):null});svG();document.getElementById('nn').value='';document.getElementById('nh').value='';}
 function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g=>g.id!==id);svG();}}
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
