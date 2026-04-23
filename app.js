@@ -34,11 +34,17 @@ function gScHcp(gid){
 }
 function eHcp(g,wks){
   // If wks is explicitly passed (for specific week subsets like tournament seeding), use all scores in that range
-  if(wks&&wks!==S.weeks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,wks);}
+  if(wks&&wks!==S.weeks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:s.length===0?null:calcHcp(s,wks);}
   // Otherwise use 3-week checkpoint handicap
   const s=gScHcp(g.id);
-  return s.length===0&&g.priorHcp!=null?g.priorHcp:calcHcp(s,S.weeks);
+  if(s.length===0&&g.priorHcp!=null)return g.priorHcp;
+  if(s.length===0)return null;// No handicap established yet
+  return calcHcp(s,S.weeks);
 }
+// Safe handicap: returns 0 if null (for net score calculations before HCP established)
+function safeHcp(g,wks){const h=eHcp(g,wks);return h!=null?h:0;}
+// Check if golfer has an established handicap
+function hasHcp(g){return eHcp(g,S.weeks)!=null;}
 function getMatchWinner(m,wk){
   if(m.result)return m.result;
   if(!m.g2)return m.g1;
@@ -46,7 +52,7 @@ function getMatchWinner(m,wk){
   if(ns1&&ns2)return'tie';if(ns1)return m.g2;if(ns2)return m.g1;
   const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return null;
   const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
-  const n1=s1-(g1?eHcp(g1,S.weeks):0),n2=s2-(g2?eHcp(g2,S.weeks):0);
+  const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);
   return n1<n2?m.g1:n2<n1?m.g2:'tie';
 }
 function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;(wk.matchups||[]).forEach(m=>{
@@ -89,14 +95,14 @@ function clearAnnounce(){S.announcement='';svA();}
 function renderStandings(){
   const rw=regW();
   const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{...g,rec,hcp,rounds:sc.length,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
-  const low=data.filter(g=>g.rounds>0).sort((a,b)=>a.hcp-b.hcp)[0];
+  const low=data.filter(g=>g.rounds>0&&g.hcp!=null).sort((a,b)=>a.hcp-b.hcp)[0];
   const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
   const cp=hcpCutoff();const nextUp=cp+3;
   let h='<div class="grid-auto" style="margin-bottom:20px"><div class="stat-box"><div class="stat-val">'+S.golfers.length+'</div><div class="stat-label">Golfers</div></div><div class="stat-box"><div class="stat-val">'+wp+'</div><div class="stat-label">Weeks Played</div></div><div class="stat-box"><div class="stat-val gold">'+(low?low.name+' ('+low.hcp+')':'-')+'</div><div class="stat-label">Low Handicap</div></div><div class="stat-box"><div class="stat-val">'+(cp>0?'Wk '+cp:'—')+'</div><div class="stat-label">HCP Based On</div></div></div>';
   if(wp>0)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">📊 Handicaps update every 3 weeks played (using scores through week '+cp+'). Next update after week '+nextUp+'.</div>';
   if(S.settings.startDate&&S.settings.endDate)h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Season: '+fD(S.settings.startDate)+' – '+fD(S.settings.endDate)+' | '+S.weeks.length+' weeks ('+rw+' regular + '+(S.weeks.length-rw)+' tournament)</div>';
   h+='<div class="card"><div class="card-title">📊 League Standings</div><div class="overflow-x"><table><thead><tr><th>#</th><th>Golfer</th><th>W</th><th>L</th><th>T</th><th>Win%</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>';
-  data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="color:var(--accent)">'+g.rec.w+'</td><td style="color:var(--danger)">'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td><td><span class="badge badge-gold">'+g.hcp+'</span></td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
+  data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="color:var(--accent)">'+g.rec.w+'</td><td style="color:var(--danger)">'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td><td>'+(g.hcp!=null?'<span class="badge badge-gold">'+g.hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
   h+='</tbody></table></div><div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waStandings()">📱 Share Standings</button></div></div>';
   h+='<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md"><div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">'+(data[0]?.name||'TBD')+'</div>'+(data[0]?'<div class="award-sub">'+data[0].rec.w+'-'+data[0].rec.l+'-'+data[0].rec.t+'</div>':'')+'</div><div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">'+(low?.name||'TBD')+'</div>'+(low?'<div class="award-sub">HCP: '+low.hcp+'</div>':'')+'</div><div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">'+(S.tournament?.champion||'TBD')+'</div></div></div></div>';
   document.getElementById('page-standings').innerHTML=h;
@@ -141,7 +147,7 @@ function renderResults(){
       const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
       const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;
       const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;
-      const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
+      const h1=g1?safeHcp(g1,S.weeks):0,h2=g2?safeHcp(g2,S.weeks):0;
       const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
       const shadowTag=m.isShadow?'<span style="font-size:10px;color:#60a5fa;margin-left:6px">👤 Shadow</span>':'';
 
@@ -200,12 +206,12 @@ function renderScores(){
   let st=wk?.isScramble?'<span class="badge badge-blue" style="margin-left:8px">Scramble Week</span>':'';
   let h='<div class="card"><div class="card-title">📝 Weekly Scores'+st+'</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
   const ns=wk?.noShows||{};
-  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];const hcp=eHcp(g,S.weeks);const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcp:null;
+  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];const hcp=eHcp(g,S.weeks);const hcpVal=hcp!=null?hcp:0;const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcpVal:null;const hcpDisp=hcp!=null?hcp:'NEW';
     h+='<tr'+(isNS?' style="opacity:.5"':'')+'><td style="font-weight:600">'+g.name+(isNS&&!isAdmin?' <span class="badge badge-danger">NS</span>':'')+'</td>';
     if(isAdmin)h+='<td><label class="checkbox"><div class="checkbox-box'+(isNS?' checked':'')+'" onclick="togNoShow(\''+g.id+'\')"></div></label></td>';
-    if(isNS){h+='<td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td><span class="badge badge-gold">'+hcp+'</span></td><td style="color:var(--dim)">—</td>';}
+    if(isNS){h+='<td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td style="color:var(--dim)">—</td>';}
     else{h+=isAdmin?'<td><input type="number" class="input-sm" value="'+(sc||'')+'" onchange="setScore(\''+g.id+'\',this.value)"></td>':'<td>'+(sc||'-')+'</td>';
-    h+='<td style="color:'+(ov>0?'var(--danger)':ov<0?'var(--accent)':'var(--text)')+'">'+( ov!=null?(ov>0?'+'+ov:ov):'-')+'</td><td><span class="badge badge-gold">'+hcp+'</span></td><td style="font-weight:700">'+(net!=null?net:'-')+'</td>';}
+    h+='<td style="color:'+(ov>0?'var(--danger)':ov<0?'var(--accent)':'var(--text)')+'">'+( ov!=null?(ov>0?'+'+ov:ov):'-')+'</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td style="font-weight:700">'+(net!=null?net:'-')+'</td>';}
     h+='</tr>';});
   h+='</tbody></table></div></div>';document.getElementById('page-scores').innerHTML=h;
 }
@@ -240,7 +246,7 @@ function renderMatchups(){
   }
   if(ms.length){h+='<div class="grid-auto-lg">';
     const ns=wk?.noShows||{};
-    ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
+    ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=g1?safeHcp(g1,S.weeks):0,h2=g2?safeHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
       const shadowTag=m.isShadow?'<div style="font-size:10px;color:#60a5fa;margin-bottom:4px">👤 Shadow Match — result counts for '+gN(m.g1)+' only</div>':'';
       h+='<div class="match-card"'+(m.isShadow?' style="border-color:rgba(96,165,250,.4);border-style:dashed"':'')+'><div class="match-label">Match '+(i+1)+'</div>'+shadowTag+'<div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
       (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>'+(m.result?'<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>':'')+'</div>';});
@@ -308,7 +314,7 @@ function genMatch(){
   svW();
 }
 function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
-function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:'tie'};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-eHcp(g1,S.weeks),n2=s2-eHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
+function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:'tie'};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
 
 // ─── SCRAMBLE ────────────────────────────────────────────────
 function renderScramble(){
@@ -337,7 +343,7 @@ function togScWk(wn){const wk=S.weeks.find(w=>w.wn===wn);if(wk){wk.isScramble=!w
 function togScPl(wn,gid){const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;if(!wk.scrambleExcluded)wk.scrambleExcluded=[];const i=wk.scrambleExcluded.indexOf(gid);if(i>=0)wk.scrambleExcluded.splice(i,1);else wk.scrambleExcluded.push(gid);svW();}
 function genScTeams(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;const ex=wk.scrambleExcluded||[];
-  const pl=S.golfers.filter(g=>!ex.includes(g.id)).map(g=>({id:g.id,name:g.name,hcp:eHcp(g,S.weeks),avg:avgRaw(g)}));
+  const pl=S.golfers.filter(g=>!ex.includes(g.id)).map(g=>({id:g.id,name:g.name,hcp:safeHcp(g,S.weeks),avg:avgRaw(g)}));
   if(pl.length<4){alert('Need at least 4 players');return;}
   pl.sort((a,b)=>a.hcp!==b.hcp?a.hcp-b.hcp:a.avg-b.avg);
   const nt=Math.floor(pl.length/4),ext=pl.length%4;
@@ -420,7 +426,7 @@ function togJP(id){const i=jP.indexOf(id);if(i>=0)jP.splice(i,1);else jP.push(id
 function renderAdmin(){
   let h='<div class="card"><div class="card-title">⚙️ League Settings</div><div class="grid-2"><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season Start (Wednesday)</label><input type="date" value="'+S.settings.startDate+'" onchange="S.settings.startDate=this.value;svS()"></div><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season End (Wednesday)</label><input type="date" value="'+S.settings.endDate+'" onchange="S.settings.endDate=this.value;svS()"></div></div><div style="margin-top:12px" class="flex-wrap"><button class="btn btn-primary" onclick="aGenWk()">Generate Weekly Schedule</button>'+(S.weeks.length?'<span style="font-size:13px;color:var(--dim)">'+S.weeks.length+' weeks</span>':'')+'</div><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:13px;color:var(--dim)">Admin Password:</label><input class="input-lg" value="'+S.settings.adminPassword+'" onchange="S.settings.adminPassword=this.value;svS()"></div></div>';
   h+='<div class="card"><div class="card-title">🏌️ Manage Golfers</div><div class="flex-wrap" style="margin-bottom:20px"><input id="nn" placeholder="Golfer name" style="flex:1;min-width:150px" onkeydown="if(event.key===\'Enter\')aAdd()"><input id="nh" type="number" placeholder="Prior HCP" style="width:120px" min="0" max="15"><button class="btn btn-primary" onclick="aAdd()">+ Add Golfer</button></div><div class="overflow-x"><table><thead><tr><th>Name</th><th>Prior HCP</th><th>Current HCP</th><th>Dues</th><th>Actions</th></tr></thead><tbody>';
-  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const hcp=eHcp(g,S.weeks);h+='<tr><td style="font-weight:600">'+g.name+'</td><td>'+(g.priorHcp!=null?g.priorHcp:'-')+'</td><td><span class="badge badge-gold">'+hcp+'</span></td><td><label class="checkbox"><div class="checkbox-box'+(g.paidDues?' checked':'')+'" onclick="aTD(\''+g.id+'\')"></div>'+(g.paidDues?'Paid':'Unpaid')+'</label></td><td><div class="flex-wrap"><button class="btn btn-ghost btn-sm" onclick="aEdit(\''+g.id+'\')">Edit</button><button class="btn btn-danger btn-sm" onclick="aRm(\''+g.id+'\')">✕</button></div></td></tr>';});
+  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const hcp=eHcp(g,S.weeks);h+='<tr><td style="font-weight:600">'+g.name+'</td><td>'+(g.priorHcp!=null?g.priorHcp:'-')+'</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td><label class="checkbox"><div class="checkbox-box'+(g.paidDues?' checked':'')+'" onclick="aTD(\''+g.id+'\')"></div>'+(g.paidDues?'Paid':'Unpaid')+'</label></td><td><div class="flex-wrap"><button class="btn btn-ghost btn-sm" onclick="aEdit(\''+g.id+'\')">Edit</button><button class="btn btn-danger btn-sm" onclick="aRm(\''+g.id+'\')">✕</button></div></td></tr>';});
   h+='</tbody></table></div><div style="margin-top:12px;font-size:13px;color:var(--dim)">'+S.golfers.length+' golfer'+(S.golfers.length!==1?'s':'')+' registered</div></div>';
   h+='<div class="card danger-zone"><div class="card-title">⚠️ Danger Zone</div><button class="btn btn-danger" onclick="aReset()">Reset All League Data</button><div style="font-size:12px;color:var(--dim);margin-top:8px">Permanently deletes everything.</div></div>';
   document.getElementById('page-admin').innerHTML=h;
@@ -467,7 +473,7 @@ function waStandings(){
   msg+='—'.repeat(nW+32)+'\n';
   data.forEach((g,i)=>{
     const nm=g.name.length>nW?g.name.substring(0,nW-1)+'…':g.name.padEnd(nW);
-    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+String(g.hcp).padStart(4)+String(g.avg).padStart(6)+'\n';
+    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+(g.hcp!=null?String(g.hcp).padStart(4):' NEW')+String(g.avg).padStart(6)+'\n';
   });
   msg+='```\n\n🔗 '+siteUrl();
   waShare(msg);
@@ -484,7 +490,7 @@ function waMatchups(wn){
   wk.matchups.forEach((m,i)=>{
     const n1=gN(m.g1),n2=m.g2?gN(m.g2):'BYE';
     const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
-    const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
+    const h1=g1?safeHcp(g1,S.weeks):0,h2=g2?safeHcp(g2,S.weeks):0;
     const nm1=n1.length>nW?n1.substring(0,nW-1)+'…':n1.padEnd(nW);
     const nm2=n2.length>nW?n2.substring(0,nW-1)+'…':n2.padEnd(nW);
     const sh=m.isShadow?' *':'  ';
@@ -513,7 +519,7 @@ function waResultsCalc(wn){
       const ns1=nsh[m.g1],ns2=m.g2?nsh[m.g2]:false;
       const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;
       const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
-      const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
+      const h1=g1?safeHcp(g1,S.weeks):0,h2=g2?safeHcp(g2,S.weeks):0;
       const net1=(!ns1&&s1)?s1-h1:null,net2=(!ns2&&s2)?s2-h2:null;
       // Compute winner
       let winner=null;
