@@ -164,7 +164,7 @@ function renderScores(){
   let st=wk?.isScramble?'<span class="badge badge-blue" style="margin-left:8px">Scramble Week</span>':'';
   let h='<div class="card"><div class="card-title">📝 Weekly Scores'+st+'</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
   const ns=wk?.noShows||{};
-  S.golfers.forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];const hcp=eHcp(g,S.weeks);const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcp:null;
+  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];const hcp=eHcp(g,S.weeks);const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcp:null;
     h+='<tr'+(isNS?' style="opacity:.5"':'')+'><td style="font-weight:600">'+g.name+(isNS&&!isAdmin?' <span class="badge badge-danger">NS</span>':'')+'</td>';
     if(isAdmin)h+='<td><label class="checkbox"><div class="checkbox-box'+(isNS?' checked':'')+'" onclick="togNoShow(\''+g.id+'\')"></div></label></td>';
     if(isNS){h+='<td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td><span class="badge badge-gold">'+hcp+'</span></td><td style="color:var(--dim)">—</td>';}
