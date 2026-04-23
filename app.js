@@ -146,27 +146,25 @@ function renderResults(){
       const isWin1=winner===m.g1,isWin2=m.g2&&winner===m.g2,isTie=winner==='tie';
       const hasOutcome=!!winner;
 
-      // Row background
-      let rowBg='';
-      if(isTie)rowBg='background:rgba(251,191,36,.15);';
-      else if(isWin1||isWin2)rowBg='background:rgba(74,222,128,.1);';
+      // Subtle row styling - only ties get a faint background
+      let rowBg=isTie?'background:rgba(251,191,36,.07);':'';
 
-      // Player name styles
-      const style1=isWin1?'color:#4ade80;font-weight:800;font-size:15px':isTie?'color:#fbbf24;font-weight:700;font-size:14px':hasOutcome?'color:#ef4444;font-weight:400;opacity:.55':'font-weight:600';
-      const style2=isWin2?'color:#4ade80;font-weight:800;font-size:15px':isTie?'color:#fbbf24;font-weight:700;font-size:14px':hasOutcome?'color:#ef4444;font-weight:400;opacity:.55':'font-weight:600';
+      // Player name styles: winner gets green text, loser is normal but dimmed, tie is gold
+      const style1=isWin1?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
+      const style2=isWin2?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
 
       h+='<div class="result-row" style="'+rowBg+'">';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px">';
-      h+='<span style="'+style1+'">'+(isWin1?'✅ ':'')+(g1?.name||'?')+'</span>';
+      h+='<span style="'+style1+'">'+(g1?.name||'?')+'</span>';
       if(ns1)h+='<span class="badge badge-danger">NS</span>';
       else if(s1!=null)h+='<span style="font-size:12px;color:var(--dim)">'+s1+(n1!=null?' (net '+n1+')':'')+'</span>';
       h+='</div>';
-      h+='<div style="font-size:12px;color:var(--dim);padding:0 12px;white-space:nowrap">'+(isTie?'🤝 TIE':hasOutcome?'':'vs')+'</div>';
+      h+='<div style="font-size:11px;color:var(--dim);padding:0 10px;white-space:nowrap">'+(isTie?'TIE':hasOutcome?'def.':'vs')+'</div>';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:flex-end">';
       if(g2){
         if(ns2)h+='<span class="badge badge-danger">NS</span>';
         else if(s2!=null)h+='<span style="font-size:12px;color:var(--dim)">'+(n2!=null?'(net '+n2+') ':'')+s2+'</span>';
-        h+='<span style="'+style2+'">'+g2.name+(isWin2?' ✅':'')+'</span>';
+        h+='<span style="'+style2+'">'+g2.name+'</span>';
       }else{h+='<span style="color:var(--dim)">BYE</span>';}
       h+=shadowTag+'</div></div>';
     });
