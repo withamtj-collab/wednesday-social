@@ -53,9 +53,9 @@ function doLogin(){if(document.getElementById('pw-input').value===S.settings.adm
 function uAB(){document.getElementById('auth-btn').innerHTML=isAdmin?'🔓 Logout':'🔐 Admin';}
 
 // Nav
-function renderNav(){const pages=isAdmin?['standings','scores','matchups','scramble','tournament','skins','johnnys','admin']:['standings','scores','matchups','scramble','tournament','skins','johnnys'];const lb={standings:'Standings',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();}
+function renderNav(){const pages=isAdmin?['standings','results','scores','matchups','scramble','tournament','skins','johnnys','admin']:['standings','results','scores','matchups','scramble','tournament','skins','johnnys'];const lb={standings:'Standings',results:'📋 Results',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();}
 function goPage(p){curPage=p;document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');renderNav();renderPage();}
-function renderPage(){const fn={standings:renderStandings,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
+function renderPage(){const fn={standings:renderStandings,results:renderResults,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
 
 function svA(){sv('announcement',S.announcement);}
 function renderAnnouncement(){
@@ -88,6 +88,70 @@ function renderStandings(){
   h+='</tbody></table></div></div>';
   h+='<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md"><div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">'+(data[0]?.name||'TBD')+'</div>'+(data[0]?'<div class="award-sub">'+data[0].rec.w+'-'+data[0].rec.l+'-'+data[0].rec.t+'</div>':'')+'</div><div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">'+(low?.name||'TBD')+'</div>'+(low?'<div class="award-sub">HCP: '+low.hcp+'</div>':'')+'</div><div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">'+(S.tournament?.champion||'TBD')+'</div></div></div></div>';
   document.getElementById('page-standings').innerHTML=h;
+}
+
+// ─── WEEKLY RESULTS ──────────────────────────────────────────
+let resWk=1;
+function renderResults(){
+  if(!S.weeks.length){document.getElementById('page-results').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No weeks generated yet.</div>';return;}
+  if(resWk>S.weeks.length)resWk=1;
+  const wk=S.weeks.find(w=>w.wn===resWk);
+  const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
+  const ns=wk?.noShows||{};
+  let wo=S.weeks.map(w=>'<option value="'+w.wn+'"'+(w.wn===resWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(w.isScramble?' (Scramble)':'')+'</option>').join('');
+
+  let h='<div class="card"><div class="card-title">📋 Weekly Results Summary</div>';
+  h+='<div class="flex-between" style="margin-bottom:20px"><select onchange="resWk=+this.value;renderResults()" style="width:auto">'+wo+'</select>';
+  // Share button
+  const ms=wk?.matchups||[];
+  const hasResults=ms.some(m=>m.result);
+  if(hasResults)h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waResults('+resWk+')">📱 Share Results</button>';
+  h+='</div>';
+  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: '+par+(wk?.isScramble?' | Scramble Week':'')+'</div>';
+
+  if(wk?.isScramble){
+    // Scramble week: show teams if they exist
+    const teams=wk.scrambleTeams||[];
+    if(teams.length){
+      h+='<div style="font-size:14px;font-weight:600;margin-bottom:12px">Scramble Teams</div><div class="grid-auto-lg">';
+      teams.forEach((team,ti)=>{const th=team.reduce((a,p)=>a+p.hcp,0);
+        h+='<div class="scramble-team"><div style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--accent)">Team '+(ti+1)+' <span style="font-size:12px;color:var(--dim);font-weight:400">HCP: '+th+'</span></div>';
+        team.forEach(p=>{const tc={A:'tier-a',B:'tier-b',C:'tier-c',D:'tier-d'}[p.tier]||'';
+          h+='<div class="scramble-player"><div style="display:flex;align-items:center;gap:8px"><span class="scramble-tier '+tc+'">'+p.tier+'</span><span style="font-weight:600">'+p.name+'</span></div><span class="badge badge-gold">'+p.hcp+'</span></div>';});
+        h+='</div>';});
+      h+='</div>';
+      h+='<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waScramble('+resWk+')">📱 Share Scramble Teams</button></div>';
+    }else{h+='<div style="text-align:center;padding:20px;color:var(--dim)">No scramble teams generated for this week.</div>';}
+  }else if(ms.length){
+    // Regular week: matchup results
+    ms.forEach((m,i)=>{
+      const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;
+      const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;
+      const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;
+      const h1=g1?eHcp(g1,S.weeks):0,h2=g2?eHcp(g2,S.weeks):0;
+      const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
+      const isWin1=m.result===m.g1,isWin2=m.result===m.g2,isTie=m.result==='tie';
+      const rowClass=isTie?' tie-row':(isWin1||isWin2)?' win-row':'';
+      const shadowTag=m.isShadow?'<span style="font-size:10px;color:#60a5fa;margin-left:6px">👤 Shadow</span>':'';
+
+      h+='<div class="result-row'+rowClass+'">';
+      h+='<div style="flex:1;display:flex;align-items:center;gap:8px">';
+      h+='<span class="'+(isWin1?'result-win':isTie?'result-tie':'result-loss')+'">'+(g1?.name||'?')+'</span>';
+      if(ns1)h+='<span class="badge badge-danger">NS</span>';
+      else if(s1!=null)h+='<span style="font-size:12px;color:var(--dim)">'+s1+(n1!=null?' (net '+n1+')':'')+'</span>';
+      h+='</div>';
+      h+='<div style="font-size:12px;color:var(--dim);padding:0 12px">'+(m.result?isTie?'TIE':'':'vs')+'</div>';
+      h+='<div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:flex-end">';
+      if(g2){
+        if(ns2)h+='<span class="badge badge-danger">NS</span>';
+        else if(s2!=null)h+='<span style="font-size:12px;color:var(--dim)">'+(n2!=null?'(net '+n2+') ':'')+s2+'</span>';
+        h+='<span class="'+(isWin2?'result-win':isTie?'result-tie':'result-loss')+'">'+g2.name+'</span>';
+      }else{h+='<span style="color:var(--dim)">BYE</span>';}
+      h+=shadowTag+'</div></div>';
+    });
+  }else{h+='<div style="text-align:center;padding:30px;color:var(--dim)">No matchups or results for this week.</div>';}
+  h+='</div>';
+  document.getElementById('page-results').innerHTML=h;
 }
 
 // ─── SCORES ──────────────────────────────────────────────────
@@ -131,7 +195,7 @@ function renderMatchups(){
   }
   const ms=wk?.matchups||[];
   // WhatsApp share buttons when matchups exist
-  if(ms.length&&isAdmin){
+  if(ms.length){
     const hasResults=ms.some(m=>m.result);
     h+='<div class="flex-wrap" style="margin-bottom:16px">';
     h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waMatchups('+mWk+')">📱 Share Matchups</button>';
@@ -228,7 +292,7 @@ function renderScramble(){
         team.forEach(p=>{const tc={A:'tier-a',B:'tier-b',C:'tier-c',D:'tier-d'}[p.tier]||'';
           h+='<div class="scramble-player"><div style="display:flex;align-items:center;gap:8px"><span class="scramble-tier '+tc+'">'+p.tier+'</span><span style="font-weight:600">'+p.name+'</span></div><span class="badge badge-gold">'+p.hcp+'</span></div>';});
         h+='</div>';});h+='</div>';
-      if(isAdmin)h+='<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waScramble('+s.wn+')">📱 Share Teams</button></div>';
+      h+='<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waScramble('+s.wn+')">📱 Share Teams</button></div>';
     }else if(!isAdmin){h+='<div style="text-align:center;padding:20px;color:var(--dim)">Teams not yet generated.</div>';}
     h+='</div>';});
   document.getElementById('page-scramble').innerHTML=h;
@@ -274,7 +338,9 @@ function renderTournament(){
       h+='</div></div>';}
     h+='</div></div>';
     if(t.champion)h+='<div class="champion-banner"><div style="font-size:36px">🏆</div><div style="font-size:22px;font-weight:800;color:var(--gold)">'+t.champion+'</div><div style="font-size:13px;color:var(--dim)">Tournament Champion</div></div>';
-    if(isAdmin)h+='<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366;margin-right:8px" onclick="waTournament()">📱 Share Bracket</button><button class="btn btn-danger" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button></div>';}
+    h+='<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366;margin-right:8px" onclick="waTournament()">📱 Share Bracket</button>';
+    if(isAdmin)h+='<button class="btn btn-danger" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
+    h+='</div>';}
   h+='</div><div class="card"><div class="card-title">🏅 Seedings</div><div class="overflow-x"><table><thead><tr><th>Seed</th><th>Golfer</th><th>Record</th><th>Win%</th></tr></thead><tbody>';
   seeded.forEach(g=>{h+='<tr><td style="font-weight:700;color:var(--accent)">#'+g.seed+'</td><td style="font-weight:600">'+g.name+'</td><td>'+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td></tr>';});
   h+='</tbody></table></div></div>';document.getElementById('page-tournament').innerHTML=h;
@@ -332,7 +398,13 @@ function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are 
 
 // ─── WHATSAPP SHARE ──────────────────────────────────────────
 function siteUrl(){return window.location.href.split('?')[0].split('#')[0];}
-function waShare(msg){window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
+function waShare(msg){
+  const encoded=encodeURIComponent(msg);
+  // Try whatsapp:// deep link first (works on mobile), fall back to web
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(isMobile){window.location.href='whatsapp://send?text='+encoded;}
+  else{window.open('https://web.whatsapp.com/send?text='+encoded,'_blank');}
+}
 
 // Share: Weekly matchups set
 function waMatchups(wn){
