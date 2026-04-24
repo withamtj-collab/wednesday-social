@@ -1,23 +1,21 @@
-const CACHE_NAME = 'wed-social-v3';
-const ASSETS = [
-  './',
+const CACHE_NAME = 'wed-social-v4';
+const STATIC_ASSETS = [
   './index.html',
   './app.js',
   './firebase-config.js',
-  'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap',
-  'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// Install: cache core assets
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .catch(() => {})
   );
   self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -27,17 +25,15 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch: network first, fall back to cache
 self.addEventListener('fetch', e => {
-  // Skip non-GET and Firebase API requests
+  const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('firebaseio.com')) return;
-  if (e.request.url.includes('firebasedatabase.app')) return;
-
+  if (url.origin !== self.location.origin) return;
+  const isStatic = STATIC_ASSETS.some(a => url.pathname.endsWith(a.replace('./', '')));
+  if (!isStatic) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        // Cache successful responses
         if (res.ok) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
