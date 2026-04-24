@@ -19,18 +19,14 @@ function svSH(){sv('scrambleHistory',S.scrambleHistory.reduce((o,s,i)=>{o[i]=s;r
 function wksBetween(s,e){if(!s||!e)return[];const ws=[];let d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00'),i=1;while(d<=end){ws.push({wn:i,date:d.toISOString().split('T')[0],nine:'front',scores:{},noShows:{},matchups:[],isScramble:false,scrambleTeams:[],scrambleExcluded:[]});d.setDate(d.getDate()+7);i++;}return ws;}
 function calcHcp(scores,weeks){if(!scores.length)return 0;let t=0,c=0;scores.forEach(({wn,score})=>{const w=weeks.find(x=>x.wn===wn);if(!w||!score)return;t+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR));c++;});return c?Math.min(MAX_HANDICAP,Math.round(t/c)):0;}
 function gSc(gid,wks){return(wks||S.weeks).filter(w=>w.scores&&w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));}
-// Handicap updates every 3 completed weeks: uses scores only from weeks up to the latest 3-week checkpoint
+// Handicap: established after 3 completed weeks, then updates every week after
 function completedWeeks(){return S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;}
-function hcpCutoff(){const cw=completedWeeks();const checkpoint=Math.floor(cw/3)*3;return checkpoint;}
+function hcpCutoff(){const cw=completedWeeks();return cw>=3?cw:0;}
 function gScHcp(gid){
-  // Get completed weeks in order, take only up to the latest 3-week checkpoint
-  const played=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0&&w.scores[gid]&&!(w.noShows&&w.noShows[gid]));
   const allPlayed=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0);
-  const cp=Math.floor(allPlayed.length/3)*3;
-  if(cp===0)return[];
-  // Only use scores from the first cp completed weeks
-  const cutoffWks=allPlayed.slice(0,cp);
-  return cutoffWks.filter(w=>w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));
+  if(allPlayed.length<3)return[];// No handicap until 3 weeks completed
+  // After week 3, use all scores through current week
+  return allPlayed.filter(w=>w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));
 }
 function eHcp(g,wks){
   // If wks is explicitly passed (for specific week subsets like tournament seeding), use all scores in that range
@@ -94,17 +90,18 @@ function clearAnnounce(){S.announcement='';svA();}
 // ─── STANDINGS ───────────────────────────────────────────────
 function renderStandings(){
   const rw=regW();
-  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{...g,rec,hcp,rounds:sc.length,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
+  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;const pts=rec.w*3+rec.t*1;return{...g,rec,hcp,rounds:sc.length,avg,pct,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l);
   const low=data.filter(g=>g.rounds>0&&g.hcp!=null).sort((a,b)=>a.hcp-b.hcp)[0];
   const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
-  const cp=hcpCutoff();const nextUp=cp+3;
-  let h='<div class="grid-auto" style="margin-bottom:20px"><div class="stat-box"><div class="stat-val">'+S.golfers.length+'</div><div class="stat-label">Golfers</div></div><div class="stat-box"><div class="stat-val">'+wp+'</div><div class="stat-label">Weeks Played</div></div><div class="stat-box"><div class="stat-val gold">'+(low?low.name+' ('+low.hcp+')':'-')+'</div><div class="stat-label">Low Handicap</div></div><div class="stat-box"><div class="stat-val">'+(cp>0?'Wk '+cp:'—')+'</div><div class="stat-label">HCP Based On</div></div></div>';
-  if(wp>0)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">📊 Handicaps update every 3 weeks played (using scores through week '+cp+'). Next update after week '+nextUp+'.</div>';
+  const cp=hcpCutoff();
+  let h='<div class="grid-auto" style="margin-bottom:20px"><div class="stat-box"><div class="stat-val">'+S.golfers.length+'</div><div class="stat-label">Golfers</div></div><div class="stat-box"><div class="stat-val">'+wp+'</div><div class="stat-label">Weeks Played</div></div><div class="stat-box"><div class="stat-val gold">'+(low?low.name+' ('+low.hcp+')':'-')+'</div><div class="stat-label">Low Handicap</div></div><div class="stat-box"><div class="stat-val">'+(cp>=3?'Active':'Wk 3')+'</div><div class="stat-label">'+(cp>=3?'HCP Updating':'HCP Starts')+'</div></div></div>';
+  if(wp>0&&wp<3)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">📊 Handicaps establish after week 3 ('+(3-wp)+' more week'+(3-wp>1?'s':'')+'), then update weekly.</div>';
+  else if(wp>=3)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">📊 Handicaps updating weekly (based on all '+wp+' weeks played).</div>';
   if(S.settings.startDate&&S.settings.endDate)h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Season: '+fD(S.settings.startDate)+' – '+fD(S.settings.endDate)+' | '+S.weeks.length+' weeks ('+rw+' regular + '+(S.weeks.length-rw)+' tournament)</div>';
-  h+='<div class="card"><div class="card-title">📊 League Standings</div><div class="overflow-x"><table><thead><tr><th>#</th><th>Golfer</th><th>W</th><th>L</th><th>T</th><th>Win%</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>';
-  data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="color:var(--accent)">'+g.rec.w+'</td><td style="color:var(--danger)">'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.pct*100).toFixed(1)+'%</td><td>'+(g.hcp!=null?'<span class="badge badge-gold">'+g.hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
+  h+='<div class="card"><div class="card-title">📊 League Standings</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">Win = 3 pts | Tie = 1 pt | Loss = 0 pts</div><div class="overflow-x"><table><thead><tr><th>#</th><th>Golfer</th><th>Pts</th><th>W</th><th>L</th><th>T</th><th>HCP</th><th>Rnds</th><th>Avg</th><th>Dues</th></tr></thead><tbody>';
+  data.forEach((g,i)=>{h+='<tr'+(i<3?' class="row-highlight"':'')+'><td>'+(i+1)+'</td><td style="font-weight:600">'+g.name+'</td><td style="font-weight:800;color:var(--accent);font-size:15px">'+g.pts+'</td><td>'+g.rec.w+'</td><td>'+g.rec.l+'</td><td>'+g.rec.t+'</td><td>'+(g.hcp!=null?'<span class="badge badge-gold">'+g.hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td>'+g.rounds+'</td><td>'+g.avg+'</td><td>'+(g.paidDues?'<span class="badge badge-accent">Paid</span>':'<span class="badge badge-danger">Unpaid</span>')+'</td></tr>';});
   h+='</tbody></table></div><div style="margin-top:12px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waStandings()">📱 Share Standings</button></div></div>';
-  h+='<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md"><div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">'+(data[0]?.name||'TBD')+'</div>'+(data[0]?'<div class="award-sub">'+data[0].rec.w+'-'+data[0].rec.l+'-'+data[0].rec.t+'</div>':'')+'</div><div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">'+(low?.name||'TBD')+'</div>'+(low?'<div class="award-sub">HCP: '+low.hcp+'</div>':'')+'</div><div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">'+(S.tournament?.champion||'TBD')+'</div></div></div></div>';
+  h+='<div class="card"><div class="card-title">🏆 Season Awards</div><div class="grid-auto-md"><div class="award"><div class="award-emoji">🥇</div><div class="award-label">Regular Season Champ</div><div class="award-name">'+(data[0]?.name||'TBD')+'</div>'+(data[0]?'<div class="award-sub">'+data[0].pts+' pts ('+data[0].rec.w+'-'+data[0].rec.l+'-'+data[0].rec.t+')</div>':'')+'</div><div class="award"><div class="award-emoji">🎯</div><div class="award-label">Low Handicap</div><div class="award-name">'+(low?.name||'TBD')+'</div>'+(low?'<div class="award-sub">HCP: '+low.hcp+'</div>':'')+'</div><div class="award"><div class="award-emoji">🏆</div><div class="award-label">Tournament Champion</div><div class="award-name">'+(S.tournament?.champion||'TBD')+'</div></div></div></div>';
   document.getElementById('page-standings').innerHTML=h;
 }
 
@@ -365,7 +362,7 @@ function genScTeams(wn){
 
 // ─── TOURNAMENT ──────────────────────────────────────────────
 function renderTournament(){
-  const rw=regW();const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
+  const rw=regW();const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pts=r.w*3+r.t*1;return{...g,rec:r,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l).map((g,i)=>({...g,seed:i+1}));
   const t=S.tournament;let h='<div class="card"><div class="card-title">🏆 End of Season Tournament</div>';
   if(!t){h+='<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:16px">🏆</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">Tournament Bracket</div><div style="color:var(--dim);margin-bottom:20px">Seeded by record. NCAA-style with play-in games.</div>'+(isAdmin&&seeded.length>=2?'<button class="btn btn-primary" onclick="genBracket()">Generate Bracket</button>':'')+(isAdmin?'':'<div style="color:var(--dim)">Admin will generate bracket.</div>')+'</div>';}
   else{h+='<div style="overflow-x:auto"><div style="display:flex;gap:20px;min-width:'+t.totalRounds*240+'px;align-items:stretch">';
@@ -388,7 +385,7 @@ function renderTournament(){
   h+='</tbody></table></div></div>';document.getElementById('page-tournament').innerHTML=h;
 }
 function bOrd(sz){if(sz===2)return[0,1];const h=bOrd(sz/2);return h.reduce((a,s)=>{a.push(s);a.push(sz-1-s);return a;},[]);}
-function genBracket(){const rw=regW();const sd=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));const n=sd.length;if(n<2)return;let bs=2;while(bs<n)bs*=2;const seeds=Array.from({length:bs},(_,i)=>i<n?sd[i]:null);const ord=bOrd(bs).map(p=>seeds[p]);const ms=[];for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}const tr=Math.log2(bs);const all=[...ms];let prev=ms;for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}S.tournament={matches:all,totalRounds:tr,bracketSize:bs,champion:null};svT();}
+function genBracket(){const rw=regW();const sd=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pts=r.w*3+r.t*1;return{...g,rec:r,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l).map((g,i)=>({...g,seed:i+1}));const n=sd.length;if(n<2)return;let bs=2;while(bs<n)bs*=2;const seeds=Array.from({length:bs},(_,i)=>i<n?sd[i]:null);const ord=bOrd(bs).map(p=>seeds[p]);const ms=[];for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}const tr=Math.log2(bs);const all=[...ms];let prev=ms;for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}S.tournament={matches:all,totalRounds:tr,bracketSize:bs,champion:null};svT();}
 function setTW(mid,wid){const t=S.tournament;if(!t)return;const match=t.matches.find(m=>m.id===mid);if(!match)return;match.winner=wid;const next=t.matches.find(m=>m.feedsFrom&&m.feedsFrom.includes(mid));if(next){const idx=next.feedsFrom.indexOf(mid);if(idx===0)next.g1=wid;else next.g2=wid;next.winner=null;}const fin=t.matches.find(m=>m.round===t.totalRounds);t.champion=fin?.winner?gN(fin.winner):null;svT();}
 
 // ─── SKINS ───────────────────────────────────────────────────
@@ -464,16 +461,16 @@ function waShare(msg){
 // Share: Standings as formatted table
 function waStandings(){
   const rw=regW();
-  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,hcp,avg,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
+  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const hcp=eHcp(g,S.weeks);const sc=gSc(g.id,S.weeks);const avg=sc.length?(sc.reduce((a,s)=>a+s.score,0)/sc.length).toFixed(1):'-';const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;const pts=rec.w*3+rec.t*1;return{name:g.name,rec,hcp,avg,pct,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l);
   const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;
   const nW=14;
-  let msg='⛳ *The Wednesday Social*\n📊 *League Standings — Week '+wp+'*\n\n';
+  let msg='⛳ *The Wednesday Social*\n📊 *League Standings — Week '+wp+'*\nWin=3pts | Tie=1pt | Loss=0pts\n\n';
   msg+='```\n';
-  msg+=' # '+'Name'.padEnd(nW)+' W  L  T  Pct  HCP  Avg\n';
+  msg+=' # '+'Name'.padEnd(nW)+' Pts  W  L  T  HCP  Avg\n';
   msg+='—'.repeat(nW+32)+'\n';
   data.forEach((g,i)=>{
     const nm=g.name.length>nW?g.name.substring(0,nW-1)+'…':g.name.padEnd(nW);
-    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+(g.hcp!=null?String(g.hcp).padStart(4):' NEW')+String(g.avg).padStart(6)+'\n';
+    msg+=String(i+1).padStart(2)+' '+nm+String(g.pts).padStart(3)+String(g.rec.w).padStart(3)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.hcp!=null?String(g.hcp).padStart(4):' NEW')+String(g.avg).padStart(6)+'\n';
   });
   msg+='```\n\n🔗 '+siteUrl();
   waShare(msg);
@@ -553,13 +550,13 @@ function waResultsCalc(wn){
 
   // Top 10 standings table
   const rw=regW();
-  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const tot=rec.w+rec.l+rec.t;const pct=tot>0?(rec.w+rec.t*.5)/tot:0;return{name:g.name,rec,pct,hcp:eHcp(g,S.weeks)};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w);
+  const data=S.golfers.map(g=>{const rec=getRec(g.id,S.weeks.slice(0,rw));const pts=rec.w*3+rec.t*1;return{name:g.name,rec,pts,hcp:eHcp(g,S.weeks)};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l);
   msg+='📊 *Top 10 Standings:*\n```\n';
-  msg+=' # '+'Name'.padEnd(nW)+' W  L  T  Pct  HCP\n';
+  msg+=' # '+'Name'.padEnd(nW)+' Pts  W  L  T  HCP\n';
   msg+='—'.repeat(nW+26)+'\n';
   data.slice(0,10).forEach((g,i)=>{
     const nm=g.name.length>nW?g.name.substring(0,nW-1)+'…':g.name.padEnd(nW);
-    msg+=String(i+1).padStart(2)+' '+nm+String(g.rec.w).padStart(2)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.pct*100).toFixed(0).padStart(4)+'%'+String(g.hcp).padStart(4)+'\n';
+    msg+=String(i+1).padStart(2)+' '+nm+String(g.pts).padStart(3)+String(g.rec.w).padStart(3)+String(g.rec.l).padStart(3)+String(g.rec.t).padStart(3)+(g.hcp!=null?String(g.hcp).padStart(4):' NEW')+'\n';
   });
   msg+='```\n\n🔗 '+siteUrl();
   waShare(msg);
@@ -588,7 +585,7 @@ function waScramble(wn){
 function waTournament(){
   const t=S.tournament;if(!t)return;
   const rw=regW();
-  const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pct=tot>0?(r.w+r.t*.5)/tot:0;return{...g,rec:r,pct};}).sort((a,b)=>b.pct-a.pct||b.rec.w-a.rec.w).map((g,i)=>({...g,seed:i+1}));
+  const seeded=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pts=r.w*3+r.t*1;return{...g,rec:r,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l).map((g,i)=>({...g,seed:i+1}));
   const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
   const nW=14;
 
