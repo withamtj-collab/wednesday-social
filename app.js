@@ -467,7 +467,7 @@ function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
 function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:''};}
-function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}}
+function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}
 
 // ─── WHATSAPP SHARE ──────────────────────────────────────────
 function siteUrl(){return window.location.href.split('?')[0].split('#')[0];}
