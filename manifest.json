@@ -1,0 +1,25 @@
+{
+  "name": "The Wednesday Social — Golf League",
+  "short_name": "Wed Social",
+  "description": "Golf league standings, matchups, scores, and more",
+  "start_url": "/wednesday-social/",
+  "scope": "/wednesday-social/",
+  "display": "standalone",
+  "background_color": "#0a1a0f",
+  "theme_color": "#0a1a0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
