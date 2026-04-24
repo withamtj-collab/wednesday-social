@@ -2,12 +2,12 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const FRONT_PAR=36,BACK_PAR=34,MAX_HANDICAP=15,TOURNEY_WEEKS=6;
 const genId=()=>Math.random().toString(36).substr(2,9);
-let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[],announcement:''};
+let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:''};
 let isAdmin=false,curPage='standings';
 let skP=[],skC=5,jNine='front',jP=[],jC=5,jW={},jPd={};
 
 // Firebase
-function loadData(){db.ref('league').on('value',snap=>{const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026'};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();});}
+function loadData(){db.ref('league').on('value',snap=>{const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();});}
 function sv(p,d){db.ref('league/'+p).set(d);}
 function svG(){sv('golfers',S.golfers.reduce((o,g,i)=>{o[i]=g;return o;},{}));}
 function svW(){sv('weeks',S.weeks.reduce((o,w,i)=>{o[i]=w;return o;},{}));}
@@ -67,7 +67,15 @@ function doLogin(){if(document.getElementById('pw-input').value===S.settings.adm
 function uAB(){document.getElementById('auth-btn').innerHTML=isAdmin?'🔓 Logout':'🔐 Admin';}
 
 // Nav
-function renderNav(){const pages=isAdmin?['standings','results','scores','matchups','scramble','tournament','skins','johnnys','admin']:['standings','results','scores','matchups','scramble','tournament','skins','johnnys'];const lb={standings:'Standings',results:'📋 Results',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();}
+function renderNav(){
+  let pages=['standings','results','scores','matchups'];
+  if(S.settings.showScramble)pages.push('scramble');
+  if(S.settings.showTournament)pages.push('tournament');
+  pages.push('skins','johnnys');
+  if(isAdmin)pages.push('admin');
+  const lb={standings:'Standings',results:'📋 Results',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};
+  document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();
+}
 function goPage(p){curPage=p;document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');renderNav();renderPage();}
 function renderPage(){const fn={standings:renderStandings,results:renderResults,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
 
@@ -419,7 +427,7 @@ function togJP(id){const i=jP.indexOf(id);if(i>=0)jP.splice(i,1);else jP.push(id
 
 // ─── ADMIN ───────────────────────────────────────────────────
 function renderAdmin(){
-  let h='<div class="card"><div class="card-title">⚙️ League Settings</div><div class="grid-2"><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season Start (Wednesday)</label><input type="date" value="'+S.settings.startDate+'" onchange="S.settings.startDate=this.value;svS()"></div><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season End (Wednesday)</label><input type="date" value="'+S.settings.endDate+'" onchange="S.settings.endDate=this.value;svS()"></div></div><div style="margin-top:12px" class="flex-wrap"><button class="btn btn-primary" onclick="aGenWk()">Generate Weekly Schedule</button>'+(S.weeks.length?'<span style="font-size:13px;color:var(--dim)">'+S.weeks.length+' weeks</span>':'')+'</div><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:13px;color:var(--dim)">Admin Password:</label><input class="input-lg" value="'+S.settings.adminPassword+'" onchange="S.settings.adminPassword=this.value;svS()"></div></div>';
+  let h='<div class="card"><div class="card-title">⚙️ League Settings</div><div class="grid-2"><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season Start (Wednesday)</label><input type="date" value="'+S.settings.startDate+'" onchange="S.settings.startDate=this.value;svS()"></div><div><label style="font-size:13px;color:var(--dim);display:block;margin-bottom:4px">Season End (Wednesday)</label><input type="date" value="'+S.settings.endDate+'" onchange="S.settings.endDate=this.value;svS()"></div></div><div style="margin-top:12px" class="flex-wrap"><button class="btn btn-primary" onclick="aGenWk()">Generate Weekly Schedule</button>'+(S.weeks.length?'<span style="font-size:13px;color:var(--dim)">'+S.weeks.length+' weeks</span>':'')+'</div><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:13px;color:var(--dim)">Admin Password:</label><input class="input-lg" value="'+S.settings.adminPassword+'" onchange="S.settings.adminPassword=this.value;svS()"></div><div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px"><div style="font-size:13px;font-weight:600;margin-bottom:10px">Tab Visibility</div><div class="flex-wrap"><label class="checkbox"><div class="checkbox-box'+(S.settings.showScramble?' checked':'')+'" onclick="togTab(\'showScramble\')"></div>🏌️ Scramble</label><label class="checkbox"><div class="checkbox-box'+(S.settings.showTournament?' checked':'')+'" onclick="togTab(\'showTournament\')"></div>🏆 Tournament</label></div></div></div>';
   h+='<div class="card"><div class="card-title">🏌️ Manage Golfers</div><div class="flex-wrap" style="margin-bottom:20px"><input id="nn" placeholder="Golfer name" style="flex:1;min-width:150px" onkeydown="if(event.key===\'Enter\')aAdd()"><input id="nh" type="number" placeholder="Prior HCP" style="width:120px" min="0" max="15"><button class="btn btn-primary" onclick="aAdd()">+ Add Golfer</button></div><div class="overflow-x"><table><thead><tr><th>Name</th><th>Prior HCP</th><th>Current HCP</th><th>Dues</th><th>Actions</th></tr></thead><tbody>';
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const hcp=eHcp(g,S.weeks);h+='<tr><td style="font-weight:600">'+g.name+'</td><td>'+(g.priorHcp!=null?g.priorHcp:'-')+'</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td><label class="checkbox"><div class="checkbox-box'+(g.paidDues?' checked':'')+'" onclick="aTD(\''+g.id+'\')"></div>'+(g.paidDues?'Paid':'Unpaid')+'</label></td><td><div class="flex-wrap"><button class="btn btn-ghost btn-sm" onclick="aEdit(\''+g.id+'\')">Edit</button><button class="btn btn-danger btn-sm" onclick="aRm(\''+g.id+'\')">✕</button></div></td></tr>';});
   h+='</tbody></table></div><div style="margin-top:12px;font-size:13px;color:var(--dim)">'+S.golfers.length+' golfer'+(S.golfers.length!==1?'s':'')+' registered</div></div>';
@@ -444,7 +452,8 @@ function aAdd(){const n=document.getElementById('nn').value.trim(),hv=document.g
 function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g=>g.id!==id);svG();}}
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
-function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026'},tournament:null,scrambleHistory:[],announcement:''};}
+function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:''};}
+function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}}
 
 // ─── WHATSAPP SHARE ──────────────────────────────────────────
 function siteUrl(){return window.location.href.split('?')[0].split('#')[0];}
