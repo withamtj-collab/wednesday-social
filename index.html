@@ -115,9 +115,19 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 <script>
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+if('serviceWorker' in navigator){
+  // Unregister old broken service workers first
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(r=>r.unregister());
+  }).then(()=>{
+    // Clear all caches
+    if(window.caches){caches.keys().then(k=>k.forEach(n=>caches.delete(n)));}
+    // Register fresh service worker after a delay
+    setTimeout(()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});},1000);
+  });
+}
 </script>
 </body>
 </html>
