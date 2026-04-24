@@ -7,7 +7,21 @@ let isAdmin=false,curPage='standings';
 let skP=[],skC=5,jNine='front',jP=[],jC=5,jW={},jPd={};
 
 // Firebase
-function loadData(){db.ref('league').on('value',snap=>{const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();});}
+function loadData(){
+  // Timeout fallback - if Firebase doesn't respond in 10s, show error
+  const timeout=setTimeout(()=>{
+    document.getElementById('loading').innerHTML='<div style="text-align:center;padding:40px;color:#ef4444"><div style="font-size:36px;margin-bottom:16px">⚠️</div><div style="font-size:16px;font-weight:700;margin-bottom:8px">Could not connect to database</div><div style="font-size:13px;color:#64748b">Check your firebase-config.js and database rules.<br>Open browser console (F12) for details.</div><div style="margin-top:16px"><button onclick="location.reload()" style="padding:10px 20px;background:#4ade80;color:#0a1a0f;border:none;border-radius:8px;font-weight:600;cursor:pointer">Retry</button></div></div>';
+  },10000);
+  db.ref('league').on('value',snap=>{
+    clearTimeout(timeout);
+    const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}
+    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();
+  },err=>{
+    clearTimeout(timeout);
+    console.error('Firebase error:',err);
+    document.getElementById('loading').innerHTML='<div style="text-align:center;padding:40px;color:#ef4444"><div style="font-size:36px;margin-bottom:16px">⚠️</div><div style="font-size:16px;font-weight:700;margin-bottom:8px">Database Error</div><div style="font-size:13px;color:#64748b">'+err.message+'</div><div style="margin-top:16px"><button onclick="location.reload()" style="padding:10px 20px;background:#4ade80;color:#0a1a0f;border:none;border-radius:8px;font-weight:600;cursor:pointer">Retry</button></div></div>';
+  });
+}
 function sv(p,d){db.ref('league/'+p).set(d);}
 function svG(){sv('golfers',S.golfers.reduce((o,g,i)=>{o[i]=g;return o;},{}));}
 function svW(){sv('weeks',S.weeks.reduce((o,w,i)=>{o[i]=w;return o;},{}));}
