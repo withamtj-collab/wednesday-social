@@ -61,9 +61,10 @@ function rawHcpAvg(g){
 function eHcp(g,wks){
   // If wks is explicitly passed (for specific week subsets like tournament seeding), use all scores in that range
   if(wks&&wks!==S.weeks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:s.length===0?null:calcHcp(s,wks);}
-  // Check for override
-  const ov=S.hcpOverrides[g.id];
-  if(ov&&ov.enabled&&ov.value!=null)return Math.min(MAX_HANDICAP,ov.value);
+  // Check for per-week override (carry-forward from most recent week)
+  const cwn=currentWeekNum();
+  const ov=getActiveOverride(g.id,cwn);
+  if(ov)return Math.min(MAX_HANDICAP,ov.value);
   // Otherwise use system handicap
   return suggestedHcp(g);
 }
@@ -447,60 +448,109 @@ function submitScores(){
   alert('Scores submitted for Week '+scWk+'.');
 }
 function submitHandicaps(){
-  const subKey='w'+scWk;
+  const subKey='w'+hcpWk;
   if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
   S.weekSubmissions[subKey].handicaps=true;
   sv('weekSubmissions',S.weekSubmissions);
   sv('hcpOverrides',S.hcpOverrides);
   renderHandicaps();
-  alert('Handicaps submitted for Week '+scWk+'.');
+  alert('Handicaps submitted for Week '+hcpWk+'.');
 }
 function isWeekFinalized(wn){
   const sk='w'+wn;const sub=S.weekSubmissions[sk];
   return sub&&sub.scores&&sub.handicaps;
 }
+// Get the active override for a golfer on a given week (carries forward from prior weeks)
+function getActiveOverride(gid,wn){
+  // Check this week and walk backwards to find the most recent override
+  for(let w=wn;w>=1;w--){
+    const wkOv=S.hcpOverrides['w'+w];
+    if(wkOv&&wkOv[gid]&&wkOv[gid].enabled&&wkOv[gid].value!=null)return wkOv[gid];
+    // If this week explicitly disabled the override, stop looking back
+    if(wkOv&&wkOv[gid]&&!wkOv[gid].enabled)return null;
+  }
+  return null;
+}
+// Get current week number for override lookup
+function currentWeekNum(){
+  const wp=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0);
+  return wp.length>0?wp[wp.length-1].wn:1;
+}
 
 // ─── HANDICAPS TAB (Admin) ───────────────────────────────────
+let hcpWk=1;
 function renderHandicaps(){
-  const cp=hcpCutoff();const wp=completedWeeks();const nextCp=cp+3;
-  let h='<div class="card"><div class="card-title">📐 Handicap Management</div>';
-  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Handicaps update every 3 weeks (currently using scores through week '+cp+'). Next update after week '+nextCp+'.<br>Raw ≤ 6.5 rounds down. Raw > 6.5 standard rounding. Max handicap: '+MAX_HANDICAP+'.</div>';
+  if(!S.weeks.length){document.getElementById('page-handicaps').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No weeks generated yet.</div>';return;}
+  if(hcpWk>S.weeks.length)hcpWk=1;
+  const cp=hcpCutoff();const nextCp=cp+3;
+  const wk=S.weeks.find(w=>w.wn===hcpWk);
+  const subKey='w'+hcpWk;const submitted=S.weekSubmissions[subKey]?.handicaps;
+  const isHistorical=submitted;
 
-  h+='<div class="overflow-x"><table><thead><tr><th>Golfer</th><th>Raw Avg</th><th>Suggested HCP</th><th>Override</th><th>Use Override</th><th>Active HCP</th></tr></thead><tbody>';
+  let wo=S.weeks.map(w=>{const sub=S.weekSubmissions['w'+w.wn];const done=sub?.scores&&sub?.handicaps;return'<option value="'+w.wn+'"'+(w.wn===hcpWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(done?' ✓':'')+'</option>';}).join('');
+
+  let h='<div class="card"><div class="card-title">📐 Handicap Management</div>';
+  h+='<div class="flex-between" style="margin-bottom:16px"><select onchange="hcpWk=+this.value;renderHandicaps()" style="width:auto">'+wo+'</select>';
+  if(submitted)h+='<span class="badge badge-accent">Submitted</span>';
+  h+='</div>';
+  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">HCP updates every 3 weeks (using scores through week '+cp+'). Next update: week '+nextCp+'.<br>Raw ≤ 6.5 rounds down. Raw > 6.5 standard rounding. Max: '+MAX_HANDICAP+'.</div>';
+
+  // Initialize this week's overrides from prior week if they don't exist yet
+  const wkKey='w'+hcpWk;
+  if(!S.hcpOverrides[wkKey]&&hcpWk>1){
+    // Carry forward: copy enabled overrides from most recent prior week
+    const carried={};
+    S.golfers.forEach(g=>{
+      const priorOv=getActiveOverride(g.id,hcpWk-1);
+      if(priorOv)carried[g.id]={enabled:true,value:priorOv.value};
+    });
+    if(Object.keys(carried).length>0)S.hcpOverrides[wkKey]=carried;
+  }
+
+  const wkOv=S.hcpOverrides[wkKey]||{};
+
+  h+='<div class="overflow-x"><table><thead><tr><th>Golfer</th><th>Raw Avg</th><th>Suggested</th><th>Override</th><th>Use Ovr</th><th>Active HCP</th></tr></thead><tbody>';
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{
     const raw=rawHcpAvg(g);
     const suggested=suggestedHcp(g);
-    const ov=S.hcpOverrides[g.id]||{enabled:false,value:null};
-    const active=eHcp(g,S.weeks);
-    const rawDisp=raw!=null?raw.toFixed(2):(g.priorHcp!=null?'Prior: '+g.priorHcp:'—');
-    const sugDisp=suggested!=null?suggested:'NEW';
+    const ov=wkOv[g.id]||{enabled:false,value:null};
     const isOvr=ov.enabled&&ov.value!=null;
+    const active=isOvr?Math.min(MAX_HANDICAP,ov.value):(suggested!=null?suggested:(g.priorHcp!=null?g.priorHcp:null));
+    const rawDisp=raw!=null?raw.toFixed(2):(g.priorHcp!=null?'Prior: '+g.priorHcp:'—');
 
     h+='<tr'+(isOvr?' style="background:rgba(251,191,36,.06)"':'')+'>';
     h+='<td style="font-weight:600">'+g.name+'</td>';
     h+='<td>'+rawDisp+'</td>';
     h+='<td>'+(suggested!=null?'<span class="badge badge-gold">'+suggested+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td>';
-    h+='<td><input type="number" class="input-sm" min="0" max="'+MAX_HANDICAP+'" value="'+(ov.value!=null?ov.value:'')+'" onchange="setHcpOverride(\''+g.id+'\',this.value)" placeholder="—"></td>';
-    h+='<td><label class="checkbox"><div class="checkbox-box'+(ov.enabled?' checked':'')+'" onclick="togHcpOverride(\''+g.id+'\')"></div></label></td>';
+    if(!isHistorical){
+      h+='<td><input type="number" class="input-sm" min="0" max="'+MAX_HANDICAP+'" value="'+(ov.value!=null?ov.value:'')+'" onchange="setHcpOv(\''+g.id+'\',this.value)" placeholder="—"></td>';
+      h+='<td><label class="checkbox"><div class="checkbox-box'+(ov.enabled?' checked':'')+'" onclick="togHcpOv(\''+g.id+'\')"></div></label></td>';
+    }else{
+      h+='<td>'+(ov.value!=null?ov.value:'—')+'</td>';
+      h+='<td>'+(ov.enabled?'<span class="badge badge-gold">Yes</span>':'—')+'</td>';
+    }
     h+='<td style="font-weight:700;color:var(--accent)">'+(active!=null?active:'NEW')+(isOvr?' <span style="font-size:10px;color:var(--gold)">(ovr)</span>':'')+'</td>';
     h+='</tr>';
   });
   h+='</tbody></table></div>';
-  h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px">';
-  h+='<button class="btn btn-primary" onclick="submitHandicaps()">✅ Submit Handicaps</button>';
-  const subKey='w'+scWk;const submitted=S.weekSubmissions[subKey]?.handicaps;
-  if(submitted)h+='<span class="badge badge-accent">Handicaps submitted</span>';
-  h+='</div></div>';
+  if(!isHistorical){
+    h+='<div style="margin-top:16px"><button class="btn btn-primary" onclick="submitHandicaps()">✅ Submit Handicaps for Week '+hcpWk+'</button></div>';
+  }
+  h+='</div>';
   document.getElementById('page-handicaps').innerHTML=h;
 }
-function setHcpOverride(gid,val){
-  if(!S.hcpOverrides[gid])S.hcpOverrides[gid]={enabled:false,value:null};
-  S.hcpOverrides[gid].value=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):null;
+function setHcpOv(gid,val){
+  const wkKey='w'+hcpWk;
+  if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
+  if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
+  S.hcpOverrides[wkKey][gid].value=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):null;
   renderHandicaps();
 }
-function togHcpOverride(gid){
-  if(!S.hcpOverrides[gid])S.hcpOverrides[gid]={enabled:false,value:null};
-  S.hcpOverrides[gid].enabled=!S.hcpOverrides[gid].enabled;
+function togHcpOv(gid){
+  const wkKey='w'+hcpWk;
+  if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
+  if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
+  S.hcpOverrides[wkKey][gid].enabled=!S.hcpOverrides[wkKey][gid].enabled;
   renderHandicaps();
 }
 
