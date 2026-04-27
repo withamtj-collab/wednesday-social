@@ -255,7 +255,8 @@ function renderScores(){
     const subKey='w'+scWk;const submitted=S.weekSubmissions[subKey]?.scores;
     h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px">';
     h+='<button class="btn btn-primary" onclick="submitScores()">✅ Submit Scores</button>';
-    if(submitted)h+='<span class="badge badge-accent">Scores submitted for Week '+scWk+'</span>';
+    if(submitted){h+='<span class="badge badge-accent">Scores submitted for Week '+scWk+'</span>';
+      h+='<button class="btn btn-ghost btn-sm" onclick="unsubmitScores()">↩ Un-submit</button>';}
     else h+='<span style="font-size:12px;color:var(--dim)">Scores not yet submitted</span>';
     h+='</div>';
   }
@@ -447,6 +448,13 @@ function submitScores(){
   renderScores();
   alert('Scores submitted for Week '+scWk+'.');
 }
+function unsubmitScores(){
+  if(!confirm('Un-submit scores for Week '+scWk+'? This will also un-finalize standings for this week.'))return;
+  const subKey='w'+scWk;
+  if(S.weekSubmissions[subKey])delete S.weekSubmissions[subKey].scores;
+  sv('weekSubmissions',S.weekSubmissions);
+  renderScores();
+}
 function submitHandicaps(){
   const subKey='w'+hcpWk;
   if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
@@ -455,6 +463,13 @@ function submitHandicaps(){
   sv('hcpOverrides',S.hcpOverrides);
   renderHandicaps();
   alert('Handicaps submitted for Week '+hcpWk+'.');
+}
+function unsubmitHandicaps(){
+  if(!confirm('Un-submit handicaps for Week '+hcpWk+'? This will make the week editable again.'))return;
+  const subKey='w'+hcpWk;
+  if(S.weekSubmissions[subKey])delete S.weekSubmissions[subKey].handicaps;
+  sv('weekSubmissions',S.weekSubmissions);
+  renderHandicaps();
 }
 function isWeekFinalized(wn){
   const sk='w'+wn;const sub=S.weekSubmissions[sk];
@@ -535,6 +550,8 @@ function renderHandicaps(){
   h+='</tbody></table></div>';
   if(!isHistorical){
     h+='<div style="margin-top:16px"><button class="btn btn-primary" onclick="submitHandicaps()">✅ Submit Handicaps for Week '+hcpWk+'</button></div>';
+  }else{
+    h+='<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="unsubmitHandicaps()">↩ Un-submit Week '+hcpWk+' Handicaps</button></div>';
   }
   h+='</div>';
   document.getElementById('page-handicaps').innerHTML=h;
