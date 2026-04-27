@@ -2,7 +2,7 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const FRONT_PAR=36,BACK_PAR=34,MAX_HANDICAP=15,TOURNEY_WEEKS=6;
 const genId=()=>Math.random().toString(36).substr(2,9);
-let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:''};
+let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',hcpOverrides:{},weekSubmissions:{}};
 let isAdmin=false,curPage='standings';
 let skP=[],skC=5,jNine='front',jP=[],jC=5,jW={},jPd={};
 
@@ -14,7 +14,7 @@ function loadData(){
   },10000);
   db.ref('league').on('value',snap=>{
     clearTimeout(timeout);
-    const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';}
+    const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};}
     document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();renderPage();
   },err=>{
     clearTimeout(timeout);
@@ -31,25 +31,41 @@ function svSH(){sv('scrambleHistory',S.scrambleHistory.reduce((o,s,i)=>{o[i]=s;r
 
 // Helpers
 function wksBetween(s,e){if(!s||!e)return[];const ws=[];let d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00'),i=1;while(d<=end){ws.push({wn:i,date:d.toISOString().split('T')[0],nine:'front',scores:{},noShows:{},matchups:[],isScramble:false,scrambleTeams:[],scrambleExcluded:[]});d.setDate(d.getDate()+7);i++;}return ws;}
-function calcHcp(scores,weeks){if(!scores.length)return 0;let t=0,c=0;scores.forEach(({wn,score})=>{const w=weeks.find(x=>x.wn===wn);if(!w||!score)return;t+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR));c++;});return c?Math.min(MAX_HANDICAP,Math.round(t/c)):0;}
+function calcRawHcp(scores,weeks){if(!scores.length)return null;let t=0,c=0;scores.forEach(({wn,score})=>{const w=weeks.find(x=>x.wn===wn);if(!w||!score)return;t+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR));c++;});return c?t/c:null;}
+function hcpRound(raw){if(raw===null)return null;if(raw<=6.5)return Math.floor(raw);return Math.round(raw);}
+function calcHcp(scores,weeks){const raw=calcRawHcp(scores,weeks);if(raw===null)return 0;return Math.min(MAX_HANDICAP,hcpRound(raw));}
 function gSc(gid,wks){return(wks||S.weeks).filter(w=>w.scores&&w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));}
-// Handicap: established after 3 completed weeks, then updates every week after
+// Handicap: updates every 3 completed weeks (3, 6, 9, etc.)
 function completedWeeks(){return S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0).length;}
-function hcpCutoff(){const cw=completedWeeks();return cw>=3?cw:0;}
+function hcpCutoff(){const cw=completedWeeks();return Math.floor(cw/3)*3;}
 function gScHcp(gid){
   const allPlayed=S.weeks.filter(w=>w.scores&&Object.keys(w.scores).length>0);
-  if(allPlayed.length<3)return[];// No handicap until 3 weeks completed
-  // After week 3, use all scores through current week
-  return allPlayed.filter(w=>w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));
+  const cp=Math.floor(allPlayed.length/3)*3;
+  if(cp===0)return[];
+  const cutoffWks=allPlayed.slice(0,cp);
+  return cutoffWks.filter(w=>w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));
+}
+// Get the system-suggested handicap (before override)
+function suggestedHcp(g){
+  const s=gScHcp(g.id);
+  if(s.length===0&&g.priorHcp!=null)return g.priorHcp;
+  if(s.length===0)return null;
+  return calcHcp(s,S.weeks);
+}
+// Get raw average for display
+function rawHcpAvg(g){
+  const s=gScHcp(g.id);
+  if(s.length===0)return null;
+  return calcRawHcp(s,S.weeks);
 }
 function eHcp(g,wks){
   // If wks is explicitly passed (for specific week subsets like tournament seeding), use all scores in that range
   if(wks&&wks!==S.weeks){const s=gSc(g.id,wks);return s.length===0&&g.priorHcp!=null?g.priorHcp:s.length===0?null:calcHcp(s,wks);}
-  // Otherwise use 3-week checkpoint handicap
-  const s=gScHcp(g.id);
-  if(s.length===0&&g.priorHcp!=null)return g.priorHcp;
-  if(s.length===0)return null;// No handicap established yet
-  return calcHcp(s,S.weeks);
+  // Check for override
+  const ov=S.hcpOverrides[g.id];
+  if(ov&&ov.enabled&&ov.value!=null)return Math.min(MAX_HANDICAP,ov.value);
+  // Otherwise use system handicap
+  return suggestedHcp(g);
 }
 // Safe handicap: returns 0 if null (for net score calculations before HCP established)
 function safeHcp(g,wks){const h=eHcp(g,wks);return h!=null?h:0;}
@@ -65,7 +81,7 @@ function getMatchWinner(m,wk){
   const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);
   return n1<n2?m.g1:n2<n1?m.g2:'tie';
 }
-function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;(wk.matchups||[]).forEach(m=>{
+function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
 if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
 const winner=getMatchWinner(m,wk);if(!winner)return;
 if(winner==='tie')t++;else if(winner===gid)w++;else l++;});});return{w,l,t};}
@@ -86,12 +102,12 @@ function renderNav(){
   if(S.settings.showScramble)pages.push('scramble');
   if(S.settings.showTournament)pages.push('tournament');
   pages.push('skins','johnnys');
-  if(isAdmin)pages.push('admin');
-  const lb={standings:'Standings',results:'📋 Results',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",admin:'🔧 Admin'};
+  if(isAdmin)pages.push('handicaps','admin');
+  const lb={standings:'Standings',results:'📋 Results',scores:'Scores',matchups:'Matchups',scramble:'🏌️ Scramble',tournament:'Tournament',skins:'💰 Skins',johnnys:"🏆 Johnny's",handicaps:'📐 Handicaps',admin:'🔧 Admin'};
   document.getElementById('nav').innerHTML=pages.map(p=>'<button class="nav-btn'+(curPage===p?' active':'')+'" onclick="goPage(\''+p+'\')">'+lb[p]+'</button>').join('');uAB();
 }
 function goPage(p){curPage=p;document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');renderNav();renderPage();}
-function renderPage(){const fn={standings:renderStandings,results:renderResults,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
+function renderPage(){const fn={standings:renderStandings,results:renderResults,scores:renderScores,matchups:renderMatchups,scramble:renderScramble,tournament:renderTournament,skins:renderSkins,johnnys:renderJohnnys,handicaps:()=>{if(isAdmin)renderHandicaps();},admin:()=>{if(isAdmin)renderAdmin();}};fn[curPage]();}
 
 function svA(){sv('announcement',S.announcement);}
 function renderAnnouncement(){
@@ -233,7 +249,16 @@ function renderScores(){
     else{h+=isAdmin?'<td><input type="number" class="input-sm" value="'+(sc||'')+'" onchange="setScore(\''+g.id+'\',this.value)"></td>':'<td>'+(sc||'-')+'</td>';
     h+='<td style="color:'+(ov>0?'var(--danger)':ov<0?'var(--accent)':'var(--text)')+'">'+( ov!=null?(ov>0?'+'+ov:ov):'-')+'</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td style="font-weight:700">'+(net!=null?net:'-')+'</td>';}
     h+='</tr>';});
-  h+='</tbody></table></div></div>';document.getElementById('page-scores').innerHTML=h;
+  h+='</tbody></table></div>';
+  if(isAdmin){
+    const subKey='w'+scWk;const submitted=S.weekSubmissions[subKey]?.scores;
+    h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px">';
+    h+='<button class="btn btn-primary" onclick="submitScores()">✅ Submit Scores</button>';
+    if(submitted)h+='<span class="badge badge-accent">Scores submitted for Week '+scWk+'</span>';
+    else h+='<span style="font-size:12px;color:var(--dim)">Scores not yet submitted</span>';
+    h+='</div>';
+  }
+  h+='</div>';document.getElementById('page-scores').innerHTML=h;
 }
 function setNine(v){const wk=S.weeks.find(w=>w.wn===scWk);if(wk){wk.nine=v;svW();}}
 function setScore(gid,val){const wk=S.weeks.find(w=>w.wn===scWk);if(!wk)return;if(!wk.scores)wk.scores={};if(val===''||val===null)delete wk.scores[gid];else wk.scores[gid]=parseInt(val);svW();}
@@ -412,6 +437,73 @@ function bOrd(sz){if(sz===2)return[0,1];const h=bOrd(sz/2);return h.reduce((a,s)
 function genBracket(){const rw=regW();const sd=S.golfers.map(g=>{const r=getRec(g.id,S.weeks.slice(0,rw));const tot=r.w+r.l+r.t;const pts=r.w*3+r.t*1;return{...g,rec:r,pts};}).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.rec.l-b.rec.l).map((g,i)=>({...g,seed:i+1}));const n=sd.length;if(n<2)return;let bs=2;while(bs<n)bs*=2;const seeds=Array.from({length:bs},(_,i)=>i<n?sd[i]:null);const ord=bOrd(bs).map(p=>seeds[p]);const ms=[];for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}const tr=Math.log2(bs);const all=[...ms];let prev=ms;for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}S.tournament={matches:all,totalRounds:tr,bracketSize:bs,champion:null};svT();}
 function setTW(mid,wid){const t=S.tournament;if(!t)return;const match=t.matches.find(m=>m.id===mid);if(!match)return;match.winner=wid;const next=t.matches.find(m=>m.feedsFrom&&m.feedsFrom.includes(mid));if(next){const idx=next.feedsFrom.indexOf(mid);if(idx===0)next.g1=wid;else next.g2=wid;next.winner=null;}const fin=t.matches.find(m=>m.round===t.totalRounds);t.champion=fin?.winner?gN(fin.winner):null;svT();}
 
+// ─── SCORE & HANDICAP SUBMISSION ─────────────────────────────
+function submitScores(){
+  const subKey='w'+scWk;
+  if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
+  S.weekSubmissions[subKey].scores=true;
+  sv('weekSubmissions',S.weekSubmissions);
+  renderScores();
+  alert('Scores submitted for Week '+scWk+'.');
+}
+function submitHandicaps(){
+  const subKey='w'+scWk;
+  if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
+  S.weekSubmissions[subKey].handicaps=true;
+  sv('weekSubmissions',S.weekSubmissions);
+  sv('hcpOverrides',S.hcpOverrides);
+  renderHandicaps();
+  alert('Handicaps submitted for Week '+scWk+'.');
+}
+function isWeekFinalized(wn){
+  const sk='w'+wn;const sub=S.weekSubmissions[sk];
+  return sub&&sub.scores&&sub.handicaps;
+}
+
+// ─── HANDICAPS TAB (Admin) ───────────────────────────────────
+function renderHandicaps(){
+  const cp=hcpCutoff();const wp=completedWeeks();const nextCp=cp+3;
+  let h='<div class="card"><div class="card-title">📐 Handicap Management</div>';
+  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">Handicaps update every 3 weeks (currently using scores through week '+cp+'). Next update after week '+nextCp+'.<br>Raw ≤ 6.5 rounds down. Raw > 6.5 standard rounding. Max handicap: '+MAX_HANDICAP+'.</div>';
+
+  h+='<div class="overflow-x"><table><thead><tr><th>Golfer</th><th>Raw Avg</th><th>Suggested HCP</th><th>Override</th><th>Use Override</th><th>Active HCP</th></tr></thead><tbody>';
+  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{
+    const raw=rawHcpAvg(g);
+    const suggested=suggestedHcp(g);
+    const ov=S.hcpOverrides[g.id]||{enabled:false,value:null};
+    const active=eHcp(g,S.weeks);
+    const rawDisp=raw!=null?raw.toFixed(2):(g.priorHcp!=null?'Prior: '+g.priorHcp:'—');
+    const sugDisp=suggested!=null?suggested:'NEW';
+    const isOvr=ov.enabled&&ov.value!=null;
+
+    h+='<tr'+(isOvr?' style="background:rgba(251,191,36,.06)"':'')+'>';
+    h+='<td style="font-weight:600">'+g.name+'</td>';
+    h+='<td>'+rawDisp+'</td>';
+    h+='<td>'+(suggested!=null?'<span class="badge badge-gold">'+suggested+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td>';
+    h+='<td><input type="number" class="input-sm" min="0" max="'+MAX_HANDICAP+'" value="'+(ov.value!=null?ov.value:'')+'" onchange="setHcpOverride(\''+g.id+'\',this.value)" placeholder="—"></td>';
+    h+='<td><label class="checkbox"><div class="checkbox-box'+(ov.enabled?' checked':'')+'" onclick="togHcpOverride(\''+g.id+'\')"></div></label></td>';
+    h+='<td style="font-weight:700;color:var(--accent)">'+(active!=null?active:'NEW')+(isOvr?' <span style="font-size:10px;color:var(--gold)">(ovr)</span>':'')+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px">';
+  h+='<button class="btn btn-primary" onclick="submitHandicaps()">✅ Submit Handicaps</button>';
+  const subKey='w'+scWk;const submitted=S.weekSubmissions[subKey]?.handicaps;
+  if(submitted)h+='<span class="badge badge-accent">Handicaps submitted</span>';
+  h+='</div></div>';
+  document.getElementById('page-handicaps').innerHTML=h;
+}
+function setHcpOverride(gid,val){
+  if(!S.hcpOverrides[gid])S.hcpOverrides[gid]={enabled:false,value:null};
+  S.hcpOverrides[gid].value=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):null;
+  renderHandicaps();
+}
+function togHcpOverride(gid){
+  if(!S.hcpOverrides[gid])S.hcpOverrides[gid]={enabled:false,value:null};
+  S.hcpOverrides[gid].enabled=!S.hcpOverrides[gid].enabled;
+  renderHandicaps();
+}
+
 // ─── SKINS ───────────────────────────────────────────────────
 function renderSkins(){
   const pot=skP.filter(p=>p.paid).length*skC;const ts=skP.reduce((a,p)=>a+(p.skins||0),0);const ps=ts>0?pot/ts:0;
@@ -470,7 +562,7 @@ function aAdd(){const n=document.getElementById('nn').value.trim(),hv=document.g
 function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g=>g.id!==id);svG();}}
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
-function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:''};}
+function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',hcpOverrides:{},weekSubmissions:{}};}
 function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}
 
 // ─── WHATSAPP SHARE ──────────────────────────────────────────
