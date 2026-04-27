@@ -460,7 +460,11 @@ function submitHandicaps(){
   if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
   S.weekSubmissions[subKey].handicaps=true;
   sv('weekSubmissions',S.weekSubmissions);
-  sv('hcpOverrides',S.hcpOverrides);
+  // Save this week's overrides explicitly
+  const wkKey='w'+hcpWk;
+  if(S.hcpOverrides[wkKey]){
+    db.ref('league/hcpOverrides/'+wkKey).set(S.hcpOverrides[wkKey]);
+  }
   renderHandicaps();
   alert('Handicaps submitted for Week '+hcpWk+'.');
 }
@@ -476,11 +480,12 @@ function isWeekFinalized(wn){
   return sub&&sub.scores&&sub.handicaps;
 }
 // Get the active override for a golfer on a given week (carries forward from prior weeks)
+function ovHasVal(ov){return ov&&ov.value!=null&&ov.value>=0;}
 function getActiveOverride(gid,wn){
   // Check this week and walk backwards to find the most recent override
   for(let w=wn;w>=1;w--){
     const wkOv=S.hcpOverrides['w'+w];
-    if(wkOv&&wkOv[gid]&&wkOv[gid].enabled&&wkOv[gid].value!=null)return wkOv[gid];
+    if(wkOv&&wkOv[gid]&&wkOv[gid].enabled&&ovHasVal(wkOv[gid]))return wkOv[gid];
     // If this week explicitly disabled the override, stop looking back
     if(wkOv&&wkOv[gid]&&!wkOv[gid].enabled)return null;
   }
@@ -513,13 +518,15 @@ function renderHandicaps(){
   // Initialize this week's overrides from prior week if they don't exist yet
   const wkKey='w'+hcpWk;
   if(!S.hcpOverrides[wkKey]&&hcpWk>1){
-    // Carry forward: copy enabled overrides from most recent prior week
     const carried={};
     S.golfers.forEach(g=>{
       const priorOv=getActiveOverride(g.id,hcpWk-1);
-      if(priorOv)carried[g.id]={enabled:true,value:priorOv.value};
+      if(priorOv&&ovHasVal(priorOv))carried[g.id]={enabled:true,value:priorOv.value};
     });
-    if(Object.keys(carried).length>0)S.hcpOverrides[wkKey]=carried;
+    if(Object.keys(carried).length>0){
+      S.hcpOverrides[wkKey]=carried;
+      db.ref('league/hcpOverrides/'+wkKey).set(carried);
+    }
   }
 
   const wkOv=S.hcpOverrides[wkKey]||{};
@@ -528,8 +535,8 @@ function renderHandicaps(){
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{
     const raw=rawHcpAvg(g);
     const suggested=suggestedHcp(g);
-    const ov=wkOv[g.id]||{enabled:false,value:null};
-    const isOvr=ov.enabled&&ov.value!=null;
+    const ov=wkOv[g.id]||{enabled:false,value:-1};
+    const isOvr=ov.enabled&&ovHasVal(ov);
     const active=isOvr?Math.min(MAX_HANDICAP,ov.value):(suggested!=null?suggested:(g.priorHcp!=null?g.priorHcp:null));
     const rawDisp=raw!=null?raw.toFixed(2):(g.priorHcp!=null?'Prior: '+g.priorHcp:'—');
 
@@ -538,10 +545,10 @@ function renderHandicaps(){
     h+='<td>'+rawDisp+'</td>';
     h+='<td>'+(suggested!=null?'<span class="badge badge-gold">'+suggested+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td>';
     if(!isHistorical){
-      h+='<td><input type="number" class="input-sm" min="0" max="'+MAX_HANDICAP+'" value="'+(ov.value!=null?ov.value:'')+'" onchange="setHcpOv(\''+g.id+'\',this.value)" placeholder="—"></td>';
+      h+='<td><input type="number" class="input-sm" min="0" max="'+MAX_HANDICAP+'" value="'+(ovHasVal(ov)?ov.value:'')+'" onchange="setHcpOv(\''+g.id+'\',this.value)" placeholder="—"></td>';
       h+='<td><label class="checkbox"><div class="checkbox-box'+(ov.enabled?' checked':'')+'" onclick="togHcpOv(\''+g.id+'\')"></div></label></td>';
     }else{
-      h+='<td>'+(ov.value!=null?ov.value:'—')+'</td>';
+      h+='<td>'+(ovHasVal(ov)?ov.value:'—')+'</td>';
       h+='<td>'+(ov.enabled?'<span class="badge badge-gold">Yes</span>':'—')+'</td>';
     }
     h+='<td style="font-weight:700;color:var(--accent)">'+(active!=null?active:'NEW')+(isOvr?' <span style="font-size:10px;color:var(--gold)">(ovr)</span>':'')+'</td>';
@@ -559,17 +566,18 @@ function renderHandicaps(){
 function setHcpOv(gid,val){
   const wkKey='w'+hcpWk;
   if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
-  if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
-  S.hcpOverrides[wkKey][gid].value=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):null;
-  sv('hcpOverrides',S.hcpOverrides);
+  const v=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):-1;
+  S.hcpOverrides[wkKey][gid]={enabled:S.hcpOverrides[wkKey][gid]?.enabled||false,value:v};
+  db.ref('league/hcpOverrides/'+wkKey+'/'+gid).set(S.hcpOverrides[wkKey][gid]);
   renderHandicaps();
 }
 function togHcpOv(gid){
   const wkKey='w'+hcpWk;
   if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
-  if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
-  S.hcpOverrides[wkKey][gid].enabled=!S.hcpOverrides[wkKey][gid].enabled;
-  sv('hcpOverrides',S.hcpOverrides);
+  const cur=S.hcpOverrides[wkKey][gid]||{enabled:false,value:-1};
+  cur.enabled=!cur.enabled;
+  S.hcpOverrides[wkKey][gid]=cur;
+  db.ref('league/hcpOverrides/'+wkKey+'/'+gid).set(cur);
   renderHandicaps();
 }
 
