@@ -544,6 +544,7 @@ function setHcpOv(gid,val){
   if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
   if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
   S.hcpOverrides[wkKey][gid].value=val!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(val))):null;
+  sv('hcpOverrides',S.hcpOverrides);
   renderHandicaps();
 }
 function togHcpOv(gid){
@@ -551,6 +552,7 @@ function togHcpOv(gid){
   if(!S.hcpOverrides[wkKey])S.hcpOverrides[wkKey]={};
   if(!S.hcpOverrides[wkKey][gid])S.hcpOverrides[wkKey][gid]={enabled:false,value:null};
   S.hcpOverrides[wkKey][gid].enabled=!S.hcpOverrides[wkKey][gid].enabled;
+  sv('hcpOverrides',S.hcpOverrides);
   renderHandicaps();
 }
 
