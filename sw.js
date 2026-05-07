@@ -1,18 +1,6 @@
-const CACHE_NAME = 'wed-social-v4';
-const STATIC_ASSETS = [
-  './index.html',
-  './app.js',
-  './firebase-config.js',
-  './icon-192.png',
-  './icon-512.png'
-];
+const CACHE_NAME = 'wed-social-v5';
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
-      .catch(() => {})
-  );
   self.skipWaiting();
 });
 
@@ -28,11 +16,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
+  // Never cache Firebase or external requests
   if (url.origin !== self.location.origin) return;
-  const isStatic = STATIC_ASSETS.some(a => url.pathname.endsWith(a.replace('./', '')));
-  if (!isStatic) return;
+  // For our own files: always go to network, cache as backup only
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then(res => {
         if (res.ok) {
           const clone = res.clone();
@@ -42,4 +30,9 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(e.request))
   );
+});
+
+// Listen for update checks from the main page
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
