@@ -100,7 +100,7 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 <body>
 <div id="loading" class="loading"><div style="font-size:36px;margin-bottom:16px">⛳</div><div class="spinner"></div><div style="margin-top:16px;color:var(--dim)">Loading league data...</div></div>
 <div id="app" style="display:none">
-<header class="header"><div class="header-inner"><div><div class="logo">⛳ The Wednesday Social</div><div class="logo-sub">Golf League</div></div>
+<header class="header"><div class="header-inner"><div style="display:flex;align-items:center;gap:12px"><img id="site-icon" src="" style="width:40px;height:40px;border-radius:8px;display:none" onerror="this.style.display='none'"><div><div class="logo"><span id="logo-emoji">⛳</span> The Wednesday Social</div><div class="logo-sub">Golf League</div></div></div>
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><nav id="nav"></nav><button id="auth-btn" class="btn btn-ghost" style="font-size:12px" onclick="toggleAuth()">🔐 Admin</button></div></div></header>
 <div id="login-modal" class="modal-overlay" style="display:none" onclick="closeLogin()"><div class="modal" onclick="event.stopPropagation()">
 <div style="font-size:20px;font-weight:700;margin-bottom:16px;color:var(--accent)">🔐 Admin Login</div>
