@@ -75,7 +75,7 @@ function hasHcp(g){return eHcp(g,S.weeks)!=null;}
 function getMatchWinner(m,wk){
   if(!m.g2)return m.g1;
   const ns=wk.noShows||{},ns1=ns[m.g1],ns2=ns[m.g2];
-  if(ns1&&ns2)return'tie';if(ns1)return m.g2;if(ns2)return m.g1;
+  if(ns1&&ns2)return null;if(ns1)return m.g2;if(ns2)return m.g1;
   const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return null;
   const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
   const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);
@@ -224,7 +224,7 @@ function renderResults(){
       // Compute winner: use stored result if resolved, otherwise calculate from scores
       let winner=m.result||null;
       if(!winner&&m.g2){
-        if(ns1&&ns2)winner='tie';
+        if(ns1&&ns2)winner=null;// Both no-show: no match
         else if(ns1)winner=m.g2;
         else if(ns2)winner=m.g1;
         else if(n1!=null&&n2!=null){winner=n1<n2?m.g1:n2<n1?m.g2:'tie';}
@@ -233,13 +233,14 @@ function renderResults(){
 
       const isWin1=winner===m.g1,isWin2=m.g2&&winner===m.g2,isTie=winner==='tie';
       const hasOutcome=!!winner;
+      const bothNS=ns1&&ns2;
 
-      // Subtle row styling - only ties get a faint background
-      let rowBg=isTie?'background:rgba(251,191,36,.07);':'';
+      // Subtle row styling
+      let rowBg=bothNS?'background:rgba(100,116,139,.07);':isTie?'background:rgba(251,191,36,.07);':'';
 
-      // Player name styles: winner gets green text, loser is normal but dimmed, tie is gold
-      const style1=isWin1?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
-      const style2=isWin2?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
+      // Player name styles
+      const style1=bothNS?'color:var(--dim);opacity:.5':isWin1?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
+      const style2=bothNS?'color:var(--dim);opacity:.5':isWin2?'color:#4ade80;font-weight:700':isTie?'color:#fbbf24;font-weight:600':hasOutcome?'color:var(--text);opacity:.45':'font-weight:600';
 
       h+='<div class="result-row" style="'+rowBg+'">';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px">';
@@ -247,7 +248,7 @@ function renderResults(){
       if(ns1)h+='<span class="badge badge-danger">NS</span>';
       else if(s1!=null)h+='<span style="font-size:12px;color:var(--dim)">'+s1+(n1!=null?' (net '+n1+')':'')+'</span>';
       h+='</div>';
-      h+='<div style="font-size:11px;color:var(--dim);padding:0 10px;white-space:nowrap">'+(isTie?'TIE':hasOutcome?'def.':'vs')+'</div>';
+      h+='<div style="font-size:11px;color:var(--dim);padding:0 10px;white-space:nowrap">'+(bothNS?'No Match':isTie?'TIE':hasOutcome?'def.':'vs')+'</div>';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:flex-end">';
       if(g2){
         if(ns2)h+='<span class="badge badge-danger">NS</span>';
@@ -395,7 +396,7 @@ function genMatch(){
   svW();
 }
 function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
-function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:'tie'};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
+function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:null};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
 
 // ─── SCRAMBLE ────────────────────────────────────────────────
 function renderScramble(){
@@ -848,14 +849,14 @@ function waResultsCalc(wn){
       // Compute winner
       let winner=null;
       if(!m.g2)winner=m.g1;
-      else if(ns1&&ns2)winner='tie';
+      else if(ns1&&ns2)winner=null;// Both no-show: no match
       else if(ns1)winner=m.g2;
       else if(ns2)winner=m.g1;
       else if(net1!=null&&net2!=null){winner=net1<net2?m.g1:net2<net1?m.g2:'tie';}
-      const w1=winner===m.g1,w2=m.g2&&winner===m.g2,tie=winner==='tie';
-      // Markers: ✓ win, ═ tie, ✗ loss
-      const mk1=w1?'✓ ':tie?'═ ':'  ';
-      const mk2=w2?' ✓':tie?' ═':'  ';
+      const w1=winner===m.g1,w2=m.g2&&winner===m.g2,tie=winner==='tie',noMatch=ns1&&ns2;
+      // Markers: ✓ win, ═ tie, — no match, blank loss
+      const mk1=noMatch?'— ':w1?'✓ ':tie?'═ ':'  ';
+      const mk2=noMatch?' —':w2?' ✓':tie?' ═':'  ';
       const nm1=n1.length>nW?n1.substring(0,nW-1)+'…':n1.padEnd(nW);
       const sc1=ns1?' NS':s1?String(s1).padStart(3):'  -';
       const nt1=ns1?'   ':net1!=null?String(net1).padStart(3):'  -';
