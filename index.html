@@ -116,17 +116,26 @@ td{padding:10px;border-bottom:1px solid var(--border)}.overflow-x{overflow-x:aut
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js"></script>
 <script>
 if('serviceWorker' in navigator){
-  // Unregister old broken service workers first
-  navigator.serviceWorker.getRegistrations().then(regs=>{
-    regs.forEach(r=>r.unregister());
-  }).then(()=>{
-    // Clear all caches
-    if(window.caches){caches.keys().then(k=>k.forEach(n=>caches.delete(n)));}
-    // Register fresh service worker after a delay
-    setTimeout(()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});},1000);
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    // Check for updates every 60 seconds
+    setInterval(()=>{reg.update();},60000);
+    // When a new service worker is waiting, activate it and reload
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(nw)nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){
+          nw.postMessage('skipWaiting');
+        }
+      });
+    });
+  }).catch(()=>{});
+  // Reload when the new service worker takes over
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!refreshing){refreshing=true;window.location.reload();}
   });
 }
 </script>
