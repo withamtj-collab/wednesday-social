@@ -32,7 +32,7 @@ function svSH(){sv('scrambleHistory',S.scrambleHistory.reduce((o,s,i)=>{o[i]=s;r
 // Helpers
 function wksBetween(s,e){if(!s||!e)return[];const ws=[];let d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00'),i=1;while(d<=end){ws.push({wn:i,date:d.toISOString().split('T')[0],nine:'front',scores:{},noShows:{},matchups:[],isScramble:false,scrambleTeams:[],scrambleExcluded:[]});d.setDate(d.getDate()+7);i++;}return ws;}
 function calcRawHcp(scores,weeks){if(!scores.length)return null;let t=0,c=0;scores.forEach(({wn,score})=>{const w=weeks.find(x=>x.wn===wn);if(!w||!score)return;t+=Math.max(0,score-(w.nine==='front'?FRONT_PAR:BACK_PAR));c++;});return c?t/c:null;}
-function hcpRound(raw){if(raw===null)return null;if(raw<=6.5)return Math.floor(raw);return Math.round(raw);}
+function hcpRound(raw){if(raw===null)return null;const dec=raw-Math.floor(raw);return dec<=0.5?Math.floor(raw):Math.ceil(raw);}
 function calcHcp(scores,weeks){const raw=calcRawHcp(scores,weeks);if(raw===null)return 0;return Math.min(MAX_HANDICAP,hcpRound(raw));}
 function gSc(gid,wks){return(wks||S.weeks).filter(w=>w.scores&&w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));}
 // Handicap: updates every 3 completed weeks (3, 6, 9, etc.)
@@ -271,12 +271,13 @@ function renderResults(){
 // ─── SCORES ──────────────────────────────────────────────────
 let scWk=1;
 function renderScores(){
-  if(!S.weeks.length){document.getElementById('page-scores').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No weeks generated yet.</div>';return;}
-  if(scWk>S.weeks.length)scWk=1;const wk=S.weeks.find(w=>w.wn===scWk);const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
-  let wo=S.weeks.map(w=>'<option value="'+w.wn+'"'+(w.wn===scWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(w.isScramble?' (Scramble)':'')+'</option>').join('');
+  const nonScramble=S.weeks.filter(w=>!w.isScramble);
+  if(!nonScramble.length){document.getElementById('page-scores').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
+  if(!nonScramble.find(w=>w.wn===scWk))scWk=nonScramble[0].wn;
+  const wk=S.weeks.find(w=>w.wn===scWk);const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
+  let wo=nonScramble.map(w=>'<option value="'+w.wn+'"'+(w.wn===scWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+'</option>').join('');
   let ni=isAdmin?'<select onchange="setNine(this.value)" style="width:auto"><option value="front"'+(wk?.nine==='front'?' selected':'')+'>Front 9 (Par '+FRONT_PAR+')</option><option value="back"'+(wk?.nine==='back'?' selected':'')+'>Back 9 (Par '+BACK_PAR+')</option></select>':'';
-  let st=wk?.isScramble?'<span class="badge badge-blue" style="margin-left:8px">Scramble Week</span>':'';
-  let h='<div class="card"><div class="card-title">📝 Weekly Scores'+st+'</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
+  let h='<div class="card"><div class="card-title">📝 Weekly Scores</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
   const ns=wk?.noShows||{};
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];const hcp=eHcp(g,S.weeks);const hcpVal=hcp!=null?hcp:0;const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcpVal:null;const hcpDisp=hcp!=null?hcp:'NEW';
     h+='<tr'+(isNS?' style="opacity:.5"':'')+'><td style="font-weight:600">'+g.name+(isNS&&!isAdmin?' <span class="badge badge-danger">NS</span>':'')+'</td>';
@@ -418,7 +419,15 @@ function renderScramble(){
     h+='</div>';
     if(isAdmin){h+='<div style="font-size:13px;font-weight:600;margin-bottom:8px">Select participating golfers:</div><div class="flex-wrap-sm" style="margin-bottom:16px">';
       S.golfers.forEach(g=>{const ex=s.scrambleExcluded||[];h+='<button class="chip'+(!ex.includes(g.id)?' active':'')+'" onclick="togScPl('+s.wn+',\''+g.id+'\')">'+g.name+'</button>';});
-      h+='</div><button class="btn btn-primary" onclick="genScTeams('+s.wn+')" style="margin-bottom:16px">🎲 Generate Balanced Teams</button>';}
+      h+='</div>';
+      // Write-in guests
+      const guests=s.scrambleGuests||[];
+      h+='<div style="font-size:13px;font-weight:600;margin-bottom:8px">Write-in Guests:</div>';
+      if(guests.length){h+='<div style="margin-bottom:12px">';
+        guests.forEach((g,gi)=>{h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-weight:600;min-width:120px">'+g.name+'</span><span class="badge badge-gold">HCP: '+g.hcp+'</span><button class="btn btn-danger btn-sm" onclick="removeScGuest('+s.wn+','+gi+')">✕</button></div>';});
+        h+='</div>';}
+      h+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input id="guest-name-'+s.wn+'" placeholder="Guest name" style="width:150px"><input id="guest-hcp-'+s.wn+'" type="number" placeholder="HCP" min="0" max="'+MAX_HANDICAP+'" style="width:80px"><button class="btn btn-ghost btn-sm" onclick="addScGuest('+s.wn+')">+ Add Guest</button></div>';
+      h+='<button class="btn btn-primary" onclick="genScTeams('+s.wn+')" style="margin-bottom:16px">🎲 Generate Balanced Teams</button>';}
     if(teams.length){const hcps=teams.map(t=>t.reduce((a,p)=>a+p.hcp,0));
       h+='<div style="font-size:14px;font-weight:600;margin-bottom:8px">'+teams.length+' Teams</div><div style="font-size:12px;color:var(--dim);margin-bottom:12px">Team HCP range: '+Math.min(...hcps)+' – '+Math.max(...hcps)+' (spread: '+(Math.max(...hcps)-Math.min(...hcps))+')</div><div class="grid-auto-lg">';
       teams.forEach((team,ti)=>{const th=team.reduce((a,p)=>a+p.hcp,0);
@@ -426,15 +435,15 @@ function renderScramble(){
         team.forEach((p,pi)=>{const tc={A:'tier-a',B:'tier-b',C:'tier-c',D:'tier-d'}[p.tier]||'';
           h+='<div class="scramble-player"><div style="display:flex;align-items:center;gap:8px"><span class="scramble-tier '+tc+'">'+p.tier+'</span>';
           if(isAdmin&&isDraft){
-            // Editable: dropdown to swap player
+            // Editable: dropdown to swap player (includes guests)
             h+='<select style="background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit" onchange="swapScPlayer('+s.wn+','+ti+','+pi+',this.value)">';
-            // All available players for this scramble
             const ex=s.scrambleExcluded||[];
             const avail=S.golfers.filter(g=>!ex.includes(g.id)).sort((a,b)=>a.name.localeCompare(b.name));
-            avail.forEach(g=>{h+='<option value="'+g.id+'"'+(g.id===p.id?' selected':'')+'>'+g.name+'</option>';});
+            const allPlayers=[...avail.map(g=>({id:g.id,name:g.name})),...(s.scrambleGuests||[]).map(g=>({id:g.id,name:g.name+' (G)'}))].sort((a,b)=>a.name.localeCompare(b.name));
+            allPlayers.forEach(g=>{h+='<option value="'+g.id+'"'+(g.id===p.id?' selected':'')+'>'+g.name+'</option>';});
             h+='</select>';
           }else{
-            h+='<span style="font-weight:600">'+p.name+'</span>';
+            h+='<span style="font-weight:600">'+p.name+(p.isGuest?' <span style="font-size:10px;color:var(--dim)">(Guest)</span>':'')+'</span>';
           }
           h+='</div><span class="badge badge-gold">'+p.hcp+'</span></div>';});
         h+='</div>';});h+='</div>';
@@ -450,24 +459,42 @@ function renderScramble(){
     h+='</div>';});
   document.getElementById('page-scramble').innerHTML=h;
 }
-function togScWk(wn){const wk=S.weeks.find(w=>w.wn===wn);if(wk){wk.isScramble=!wk.isScramble;if(!wk.isScramble){wk.scrambleTeams=[];wk.scrambleExcluded=[];wk.scramblePublished=false;}svW();}}
+function togScWk(wn){const wk=S.weeks.find(w=>w.wn===wn);if(wk){wk.isScramble=!wk.isScramble;if(!wk.isScramble){wk.scrambleTeams=[];wk.scrambleExcluded=[];wk.scramblePublished=false;wk.scrambleGuests=[];}svW();}}
 function togScPl(wn,gid){const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;if(!wk.scrambleExcluded)wk.scrambleExcluded=[];const i=wk.scrambleExcluded.indexOf(gid);if(i>=0)wk.scrambleExcluded.splice(i,1);else wk.scrambleExcluded.push(gid);svW();}
+function addScGuest(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  const nameEl=document.getElementById('guest-name-'+wn);
+  const hcpEl=document.getElementById('guest-hcp-'+wn);
+  const name=nameEl?.value?.trim();const hcp=parseInt(hcpEl?.value);
+  if(!name){alert('Enter a guest name');return;}
+  if(isNaN(hcp)||hcp<0||hcp>MAX_HANDICAP){alert('Enter a valid handicap (0-'+MAX_HANDICAP+')');return;}
+  if(!wk.scrambleGuests)wk.scrambleGuests=[];
+  wk.scrambleGuests.push({id:'guest_'+genId(),name:name,hcp:hcp,isGuest:true});
+  svW();
+}
+function removeScGuest(wn,idx){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.scrambleGuests)return;
+  wk.scrambleGuests.splice(idx,1);svW();
+}
 function swapScPlayer(wn,teamIdx,playerIdx,newGid){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.scrambleTeams)return;
-  const newG=S.golfers.find(g=>g.id===newGid);if(!newG)return;
+  // Find new player from golfers or guests
+  let newG=S.golfers.find(g=>g.id===newGid);
+  let isGuest=false;
+  if(!newG){const guest=(wk.scrambleGuests||[]).find(g=>g.id===newGid);if(guest){newG=guest;isGuest=true;}}
+  if(!newG)return;
   const oldPlayer=wk.scrambleTeams[teamIdx][playerIdx];
   // Find if new player is already on another team and swap
   for(let ti=0;ti<wk.scrambleTeams.length;ti++){
     for(let pi=0;pi<wk.scrambleTeams[ti].length;pi++){
       if(wk.scrambleTeams[ti][pi].id===newGid){
-        // Swap: put old player where new player was
         wk.scrambleTeams[ti][pi]={...oldPlayer,tier:wk.scrambleTeams[ti][pi].tier};
         break;
       }
     }
   }
-  // Place new player in the target slot
-  wk.scrambleTeams[teamIdx][playerIdx]={id:newG.id,name:newG.name,hcp:safeHcp(newG,S.weeks),avg:avgRaw(newG),tier:oldPlayer.tier};
+  const hcp=isGuest?newG.hcp:safeHcp(newG,S.weeks);
+  wk.scrambleTeams[teamIdx][playerIdx]={id:newG.id,name:newG.name,hcp:hcp,avg:isGuest?99:avgRaw(newG),tier:oldPlayer.tier,isGuest:isGuest};
   svW();
 }
 function publishScramble(wn){
@@ -483,7 +510,9 @@ function unpublishScramble(wn){
 }
 function genScTeams(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;const ex=wk.scrambleExcluded||[];
-  const pl=S.golfers.filter(g=>!ex.includes(g.id)).map(g=>({id:g.id,name:g.name,hcp:safeHcp(g,S.weeks),avg:avgRaw(g)}));
+  const regulars=S.golfers.filter(g=>!ex.includes(g.id)).map(g=>({id:g.id,name:g.name,hcp:safeHcp(g,S.weeks),avg:avgRaw(g),isGuest:false}));
+  const guests=(wk.scrambleGuests||[]).map(g=>({id:g.id,name:g.name,hcp:g.hcp,avg:99,isGuest:true}));
+  const pl=[...regulars,...guests];
   if(pl.length<4){alert('Need at least 4 players');return;}
   pl.sort((a,b)=>a.hcp!==b.hcp?a.hcp-b.hcp:a.avg-b.avg);
   const nt=Math.floor(pl.length/4),ext=pl.length%4;
@@ -593,20 +622,21 @@ function currentWeekNum(){
 // ─── HANDICAPS TAB (Admin) ───────────────────────────────────
 let hcpWk=1;
 function renderHandicaps(){
-  if(!S.weeks.length){document.getElementById('page-handicaps').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No weeks generated yet.</div>';return;}
-  if(hcpWk>S.weeks.length)hcpWk=1;
+  const nonScrambleH=S.weeks.filter(w=>!w.isScramble);
+  if(!nonScrambleH.length){document.getElementById('page-handicaps').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
+  if(!nonScrambleH.find(w=>w.wn===hcpWk))hcpWk=nonScrambleH[0].wn;
   const cp=hcpCutoff();const nextCp=cp+3;
   const wk=S.weeks.find(w=>w.wn===hcpWk);
   const subKey='w'+hcpWk;const submitted=S.weekSubmissions[subKey]?.handicaps;
   const isHistorical=submitted;
 
-  let wo=S.weeks.map(w=>{const sub=S.weekSubmissions['w'+w.wn];const done=sub?.scores&&sub?.handicaps;return'<option value="'+w.wn+'"'+(w.wn===hcpWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(done?' ✓':'')+'</option>';}).join('');
+  let wo=nonScrambleH.map(w=>{const sub=S.weekSubmissions['w'+w.wn];const done=sub?.scores&&sub?.handicaps;return'<option value="'+w.wn+'"'+(w.wn===hcpWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(done?' ✓':'')+'</option>';}).join('');
 
   let h='<div class="card"><div class="card-title">📐 Handicap Management</div>';
   h+='<div class="flex-between" style="margin-bottom:16px"><select onchange="hcpWk=+this.value;renderHandicaps()" style="width:auto">'+wo+'</select>';
   if(submitted)h+='<span class="badge badge-accent">Submitted</span>';
   h+='</div>';
-  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">HCP updates every 3 weeks (using scores through week '+cp+'). Next update: week '+nextCp+'.<br>Raw ≤ 6.5 rounds down. Raw > 6.5 standard rounding. Max: '+MAX_HANDICAP+'.</div>';
+  h+='<div style="font-size:13px;color:var(--dim);margin-bottom:16px">HCP updates every 3 weeks (using scores through week '+cp+'). Next update: week '+nextCp+'.<br>Raw ≤ .50 rounds down. Raw > .50 rounds up. Max: '+MAX_HANDICAP+'.</div>';
 
   // Initialize this week's overrides from prior week if they don't exist yet
   const wkKey='w'+hcpWk;
