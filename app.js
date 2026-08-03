@@ -204,7 +204,7 @@ function renderStandings(){
 let resWk=1;
 function renderResults(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const availWeeks=S.weeks.filter(w=>w.date<sd);
+  const availWeeks=S.weeks.filter(w=>w.date<=sd);
   if(!availWeeks.length){document.getElementById('page-results').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No regular season weeks available.</div>';return;}
   if(!availWeeks.find(w=>w.wn===resWk))resWk=availWeeks[0].wn;
   const wk=S.weeks.find(w=>w.wn===resWk);
@@ -298,7 +298,7 @@ function renderResults(){
 let scWk=1;
 function renderScores(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const nonScramble=S.weeks.filter(w=>!w.isScramble&&w.date<sd);
+  const nonScramble=S.weeks.filter(w=>!w.isScramble&&w.date<=sd);
   if(!nonScramble.length){document.getElementById('page-scores').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
   if(!nonScramble.find(w=>w.wn===scWk))scWk=nonScramble[0].wn;
   const wk=S.weeks.find(w=>w.wn===scWk);const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
@@ -343,12 +343,35 @@ function togNoShow(gid){const wk=S.weeks.find(w=>w.wn===scWk);if(!wk)return;if(!
 let mWk=1;
 function renderMatchups(){
   const rw=regW();const sd=S.settings.seedingDate||'9999-99-99';
-  const rws=S.weeks.slice(0,rw).filter(w=>!w.isScramble&&w.date<sd);
+  const rws=S.weeks.slice(0,rw).filter(w=>!w.isScramble&&w.date<=sd);
   if(!rws.length){document.getElementById('page-matchups').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No matchup weeks available.</div>';return;}
-  if(!rws.find(w=>w.wn===mWk))mWk=rws[0]?.wn||1;const wk=S.weeks.find(w=>w.wn===mWk);
-  let opts=rws.map(w=>'<option value="'+w.wn+'"'+(w.wn===mWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+'</option>').join('');
-  let ab=isAdmin?'<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatch()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatch()">⚡ Resolve</button></div>':'';
-  let h='<div class="card"><div class="card-title">⚔️ Weekly Matchups</div><div class="flex-between" style="margin-bottom:20px"><select onchange="mWk=+this.value;renderMatchups()" style="width:auto">'+opts+'</select>'+ab+'</div>';
+  // Check if seeding week should be visible (prior week must be finalized)
+  const seedingWk=S.settings.seedingDate?rws.find(w=>w.date===S.settings.seedingDate):null;
+  if(seedingWk){
+    const priorNonScramble=rws.filter(w=>w.date<sd);
+    const lastPrior=priorNonScramble.length?priorNonScramble[priorNonScramble.length-1]:null;
+    const priorFinalized=lastPrior?isWeekFinalized(lastPrior.wn):true;
+    if(!priorFinalized){
+      // Remove seeding week from dropdown if prior isn't finalized
+      const filtered=rws.filter(w=>w.date<sd);
+      if(!filtered.length){document.getElementById('page-matchups').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">Finalize the current week to unlock seeding week matchups.</div>';return;}
+      if(!filtered.find(w=>w.wn===mWk))mWk=filtered[0]?.wn||1;
+      renderMatchupsInner(filtered);return;
+    }
+  }
+  if(!rws.find(w=>w.wn===mWk))mWk=rws[0]?.wn||1;
+  renderMatchupsInner(rws);
+}
+function renderMatchupsInner(rws){
+  const wk=S.weeks.find(w=>w.wn===mWk);
+  const isSeedWk=S.settings.seedingDate&&wk?.date===S.settings.seedingDate;
+  let opts=rws.map(w=>'<option value="'+w.wn+'"'+(w.wn===mWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(S.settings.seedingDate&&w.date===S.settings.seedingDate?' (Seeding)':'')+'</option>').join('');
+  let ab='';
+  if(isAdmin){
+    if(isSeedWk){ab='<button class="btn btn-primary" onclick="genSeedingMatchups()">🎯 Generate Seeded Matchups</button>';}
+    else{ab='<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatch()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatch()">⚡ Resolve</button></div>';}
+  }
+  let h='<div class="card"><div class="card-title">⚔️ Weekly Matchups'+(isSeedWk?' <span class="badge badge-gold">Seeding Week</span>':'')+'</div><div class="flex-between" style="margin-bottom:20px"><select onchange="mWk=+this.value;renderMatchups()" style="width:auto">'+opts+'</select>'+ab+'</div>';
   // Admin: player selector for matchup generation
   if(isAdmin&&!(wk?.matchups?.length)){
     const mExcl=wk?.matchupExcluded||[];
@@ -698,6 +721,15 @@ function finalizeWeek(){
     wk.lockedHcps=locked;
     svW();
   }
+  // Check if this is the seeding week — auto-generate bracket
+  const isSeedWk=S.settings.seedingDate&&wk?.date===S.settings.seedingDate;
+  if(isSeedWk&&!S.tournament){
+    genBracket();
+    renderHandicaps();
+    alert('Week '+hcpWk+' finalized! Seeding week complete — tournament bracket generated!');
+    goPage('tournament');
+    return;
+  }
   renderHandicaps();
   alert('Week '+hcpWk+' finalized! Standings and results updated.');
 }
@@ -766,7 +798,7 @@ function currentWeekNum(){
 let hcpWk=1;
 function renderHandicaps(){
   const sdH=S.settings.seedingDate||'9999-99-99';
-  const nonScrambleH=S.weeks.filter(w=>!w.isScramble&&w.date<sdH);
+  const nonScrambleH=S.weeks.filter(w=>!w.isScramble&&w.date<=sdH);
   if(!nonScrambleH.length){document.getElementById('page-handicaps').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
   if(!nonScrambleH.find(w=>w.wn===hcpWk))hcpWk=nonScrambleH[0].wn;
   const cp=hcpCutoff();const nextCp=cp+3;
