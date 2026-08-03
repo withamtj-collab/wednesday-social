@@ -78,13 +78,39 @@ function areHcpsFrozen(){if(!S.settings.seedingDate)return false;return S.weeks.
 // Get seeded standings with proper tiebreakers: points → wins → lower HCP → most rounds
 function getSeededStandings(){
   const rw=regW();
-  return S.golfers.map(g=>{
+  const players=S.golfers.map(g=>{
     const rec=getRec(g.id,S.weeks.slice(0,rw));
     const pts=rec.w*3+rec.t*1;
     const hcp=eHcp(g,S.weeks);
     const rounds=gSc(g.id,S.weeks).length;
     return{...g,rec,pts,hcp:hcp!=null?hcp:99,rounds};
-  }).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.hcp-b.hcp||b.rounds-a.rounds).map((g,i)=>({...g,seed:i+1}));
+  }).sort((a,b)=>b.pts-a.pts||b.rec.w-a.rec.w||a.hcp-b.hcp||b.rounds-a.rounds);
+
+  // Apply seeding week tiebreaker: only affects players who are tied on all regular criteria
+  const seedingWk=S.settings.seedingDate?S.weeks.find(w=>w.date===S.settings.seedingDate):null;
+  if(seedingWk&&seedingWk.matchups?.length){
+    // Group tied players
+    let i=0;
+    while(i<players.length){
+      let j=i+1;
+      while(j<players.length&&players[j].pts===players[i].pts&&players[j].rec.w===players[i].rec.w&&players[j].hcp===players[i].hcp&&players[j].rounds===players[i].rounds)j++;
+      if(j>i+1){
+        // Players i through j-1 are tied — check seeding week head-to-head
+        const tied=players.slice(i,j);
+        // Sort tied group by seeding week results: winners of head-to-head matchups rank higher
+        tied.sort((a,b)=>{
+          const match=seedingWk.matchups.find(m=>(m.g1===a.id&&m.g2===b.id)||(m.g1===b.id&&m.g2===a.id));
+          if(!match)return 0;
+          const winner=getMatchWinner(match,seedingWk);
+          if(!winner||winner==='tie')return 0;
+          return winner===a.id?-1:1;
+        });
+        for(let k=0;k<tied.length;k++)players[i+k]=tied[k];
+      }
+      i=j;
+    }
+  }
+  return players.map((g,i)=>({...g,seed:i+1}));
 }
 function getMatchWinner(m,wk){
   if(!m.g2)return m.g1;
