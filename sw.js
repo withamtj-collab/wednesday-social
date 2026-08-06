@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wed-social-v5';
+const CACHE_NAME = 'wed-social-v6';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
