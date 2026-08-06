@@ -620,6 +620,7 @@ function genScTeams(wn){
 }
 
 // ─── TOURNAMENT ──────────────────────────────────────────────
+const REGION_NAMES=["Prison's Lake","The Children's Home","Kegger Buzzsaw","The Sandbagger"];
 function renderTournament(){
   const seeded=getSeededStandings();
   const t=S.tournament;
@@ -627,74 +628,161 @@ function renderTournament(){
   const hasSeedingMatchups=seedingWk&&seedingWk.matchups&&seedingWk.matchups.length>0;
 
   let h='<div class="card"><div class="card-title">🏆 End of Season Tournament</div>';
-
   // Seeding Week section
   if(S.settings.seedingDate){
-    h+='<div style="margin-bottom:20px;padding:16px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px">';
-    h+='<div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px">🎯 Seeding Week — '+fD(S.settings.seedingDate)+'</div>';
+    h+='<div style="margin-bottom:20px;padding:14px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px">';
+    h+='<div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:6px">🎯 Seeding Week — '+fD(S.settings.seedingDate)+'</div>';
     if(seedingWk){
-      if(isAdmin&&!hasSeedingMatchups){
-        h+='<div style="font-size:13px;color:var(--dim);margin-bottom:12px">Generate seeded matchups: #1 vs #2, #3 vs #4, etc. Results feed the tournament bracket.</div>';
-        h+='<button class="btn btn-primary" onclick="genSeedingMatchups()">🎲 Generate Seeding Week Matchups</button>';
-      }else if(hasSeedingMatchups){
-        h+='<div style="font-size:13px;color:var(--dim);margin-bottom:8px">Seeding matchups set. Results will determine tournament bracket placement.</div>';
-        if(isAdmin)h+='<button class="btn btn-ghost btn-sm" onclick="clearSeedingMatchups()" style="margin-top:4px">Reset Seeding Matchups</button>';
-      }else{
-        h+='<div style="font-size:13px;color:var(--dim)">Seeding week is scheduled. Admin will generate matchups.</div>';
-      }
-    }else{
-      h+='<div style="font-size:13px;color:var(--dim)">Seeding date not found in schedule. Make sure it matches a Wednesday in the season.</div>';
-    }
+      if(isAdmin&&!hasSeedingMatchups)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">1v2, 3v4, etc. Only breaks ties.</div><button class="btn btn-primary btn-sm" onclick="genSeedingMatchups()">🎯 Generate Seeding Matchups</button>';
+      else if(hasSeedingMatchups){h+='<div style="font-size:12px;color:var(--dim)">Seeding matchups set.</div>';if(isAdmin)h+='<button class="btn btn-ghost btn-sm" onclick="clearSeedingMatchups()" style="margin-top:4px">Reset</button>';}
+      else h+='<div style="font-size:12px;color:var(--dim)">Admin will generate matchups.</div>';
+    }else h+='<div style="font-size:12px;color:var(--dim)">Date not found in schedule.</div>';
     h+='</div>';
   }
 
-  if(!t){h+='<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:16px">🏆</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">Tournament Bracket</div><div style="color:var(--dim);margin-bottom:20px">Seeded by standings. NCAA-style with play-in games.<br>Tiebreakers: Points → Wins → Lower HCP → Most Rounds</div>'+(isAdmin&&seeded.length>=2?'<button class="btn btn-primary" onclick="genBracket()">Generate Bracket</button>':'')+(isAdmin?'':'<div style="color:var(--dim)">Admin will generate bracket.</div>')+'</div>';}
-  else{h+='<div style="overflow-x:auto"><div style="display:flex;gap:20px;min-width:'+t.totalRounds*240+'px;align-items:stretch">';
-    for(let r=1;r<=t.totalRounds;r++){const rm=t.matches.filter(m=>m.round===r);const lbl=r===t.totalRounds?'Finals':r===t.totalRounds-1&&t.totalRounds>2?'Semis':'Round '+r;
-      h+='<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center">'+lbl+'</div><div style="display:flex;flex-direction:column;gap:8px;justify-content:space-around;height:100%">';
-      rm.forEach(m=>{const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
-        if(m.isBye){h+='<div class="bracket-match bye"><div style="text-align:center;font-size:12px;color:var(--dim)"><strong>('+gs(m.winner)+') '+gN(m.winner)+'</strong> – BYE</div></div>';}
-        else{const n1=m.g1?'('+gs(m.g1)+') '+gN(m.g1):'TBD',n2=m.g2?'('+gs(m.g2)+') '+gN(m.g2):'TBD';
-          const p1=isAdmin&&m.g1&&m.g2?'<button class="bracket-pick'+(m.winner===m.g1?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g1+'\')">✅</button>':'';
-          const p2=isAdmin&&m.g1&&m.g2?'<button class="bracket-pick'+(m.winner===m.g2?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g2+'\')">✅</button>':'';
-          h+='<div class="bracket-match"><div class="bracket-row"><span style="font-weight:'+(m.winner===m.g1?700:400)+';color:'+(m.winner===m.g1?'var(--accent)':'var(--text)')+';font-size:13px">'+n1+'</span>'+p1+'</div><div class="bracket-divider"></div><div class="bracket-row"><span style="font-weight:'+(m.winner===m.g2?700:400)+';color:'+(m.winner===m.g2?'var(--accent)':'var(--text)')+';font-size:13px">'+n2+'</span>'+p2+'</div></div>';}});
-      h+='</div></div>';}
-    h+='</div></div>';
-    if(t.champion)h+='<div class="champion-banner"><div style="font-size:36px">🏆</div><div style="font-size:22px;font-weight:800;color:var(--gold)">'+t.champion+'</div><div style="font-size:13px;color:var(--dim)">Tournament Champion</div></div>';
-    if(isAdmin){h+='<div style="margin-top:16px"><button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366;margin-right:8px" onclick="waTournament()">📱 Share Bracket</button>';
-    h+='<button class="btn btn-danger" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
+  if(!t){
+    h+='<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:16px">🏆</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">Tournament Bracket</div><div style="color:var(--dim);margin-bottom:12px">4 Regions: '+REGION_NAMES.join(' | ')+'</div><div style="color:var(--dim);margin-bottom:20px;font-size:12px">Tiebreakers: Points → Wins → Lower HCP → Most Rounds → Seeding Week</div>'+(isAdmin&&seeded.length>=2?'<button class="btn btn-primary" onclick="genBracket()">Generate Bracket</button>':'')+'</div>';
+  }else{
+    // Render 4-region NCAA bracket
+    const regions=t.regions||[];
+    h+='<div class="bracket-layout">';
+    // Left half: Region 1 (top) and Region 4 (bottom)
+    h+='<div class="bracket-half">';
+    if(regions[0])h+=renderRegion(regions[0],0,seeded,false);
+    if(regions[3])h+=renderRegion(regions[3],3,seeded,false);
+    h+='</div>';
+    // Center: Semis + Final
+    h+='<div class="bracket-center">';
+    if(t.semis){
+      h+='<div class="bk-rl">Semifinals</div>';
+      t.semis.forEach((s,i)=>{h+=renderBracketMatch(s,seeded,true,'semi-m');});
+    }
+    if(t.final){h+='<div class="bk-rl">Championship</div>';h+=renderBracketMatch(t.final,seeded,true,'final-m');}
+    if(t.champion)h+='<div style="text-align:center;margin-top:8px"><div style="font-size:28px">🏆</div><div style="font-size:16px;font-weight:800;color:var(--gold)">'+t.champion+'</div><div style="font-size:11px;color:var(--dim)">Champion</div></div>';
+    h+='</div>';
+    // Right half: Region 2 (top) and Region 3 (bottom)
+    h+='<div class="bracket-half">';
+    if(regions[1])h+=renderRegion(regions[1],1,seeded,true);
+    if(regions[2])h+=renderRegion(regions[2],2,seeded,true);
+    h+='</div>';
+    h+='</div>';
+    if(isAdmin){h+='<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
+    h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waTournament()">📱 Share Bracket</button>';
+    h+='<button class="btn btn-danger btn-sm" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
     h+='</div>';}
   }
-  h+='</div><div class="card"><div class="card-title">🏅 Seedings</div><div style="font-size:11px;color:var(--dim);margin-bottom:12px">Tiebreakers: Points → Wins → Lower HCP → Most Rounds</div><div class="overflow-x"><table><thead><tr><th>Seed</th><th>Golfer</th><th>Pts</th><th>W-L-T</th><th>HCP</th><th>Rnds</th></tr></thead><tbody>';
-  seeded.forEach(g=>{h+='<tr><td style="font-weight:700;color:var(--accent)">#'+g.seed+'</td><td style="font-weight:600">'+g.name+'</td><td style="font-weight:700">'+g.pts+'</td><td>'+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+'</td><td>'+(g.hcp<99?'<span class="badge badge-gold">'+g.hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td>'+g.rounds+'</td></tr>';});
-  h+='</tbody></table></div></div>';document.getElementById('page-tournament').innerHTML=h;
+  h+='</div>';
+  // Seedings table
+  h+='<div class="card"><div class="card-title">🏅 Seedings</div><div style="font-size:11px;color:var(--dim);margin-bottom:10px">Tiebreakers: Points → Wins → Lower HCP → Most Rounds → Seeding Week H2H</div><div class="overflow-x"><table><thead><tr><th>Seed</th><th>Golfer</th><th>Pts</th><th>W-L-T</th><th>HCP</th><th>Rnds</th><th>Region</th></tr></thead><tbody>';
+  seeded.forEach(g=>{
+    const ri=seedToRegion(g.seed);const rn=ri>=0?REGION_NAMES[ri]:'';
+    h+='<tr><td style="font-weight:700;color:var(--accent)">#'+g.seed+'</td><td style="font-weight:600">'+g.name+'</td><td style="font-weight:700">'+g.pts+'</td><td>'+g.rec.w+'-'+g.rec.l+'-'+g.rec.t+'</td><td>'+(g.hcp<99?'<span class="badge badge-gold">'+g.hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td>'+g.rounds+'</td><td style="font-size:11px;color:var(--dim)">'+rn+'</td></tr>';});
+  h+='</tbody></table></div></div>';
+  document.getElementById('page-tournament').innerHTML=h;
 }
-// Generate seeding week matchups: 1v2, 3v4, 5v6, etc.
+// Map seed to region: serpentine pattern (1→R1, 2→R2, 3→R3, 4→R4, 5→R4, 6→R3, 7→R2, 8→R1, ...)
+function seedToRegion(seed){
+  const group=Math.floor((seed-1)/4);const pos=(seed-1)%4;
+  return group%2===0?pos:3-pos;
+}
+function renderRegion(region,ri,seeded,rightSide){
+  const cls=['r1','r2','r3','r4'][ri];
+  let h='<div class="region-card '+cls+'"><div class="region-title">'+REGION_NAMES[ri]+'</div>';
+  // Group matches by round
+  const rounds={};region.matches.forEach(m=>{if(!rounds[m.round])rounds[m.round]=[];rounds[m.round].push(m);});
+  const roundNums=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  roundNums.forEach(r=>{
+    const lbl=r===1?'Round 1':r===roundNums.length?'Region Final':'Round '+r;
+    h+='<div class="bk-rl">'+lbl+'</div>';
+    rounds[r].forEach(m=>{h+=renderBracketMatch(m,seeded,false,'bk-m');});
+  });
+  h+='</div>';return h;
+}
+function renderBracketMatch(m,seeded,showPick,cls){
+  const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
+  if(m.isBye){return'<div class="'+cls+' bye"><div style="text-align:center;font-size:11px;color:var(--dim)">('+gs(m.winner)+') '+gN(m.winner)+' — BYE</div></div>';}
+  const n1=m.g1?gN(m.g1):'TBD',n2=m.g2?gN(m.g2):'TBD';
+  const s1=m.g1?gs(m.g1):'',s2=m.g2?gs(m.g2):'';
+  const w1=m.winner===m.g1,w2=m.winner===m.g2;
+  const canPick=isAdmin&&m.g1&&m.g2;
+  let h='<div class="'+cls+'">';
+  h+='<div class="bk-p'+(w1?' won':m.winner&&!w1?' lost':'')+'"><span class="bk-s">'+s1+'</span><span class="bk-n">'+n1+'</span>';
+  if(canPick)h+='<button class="bk-pk'+(w1?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g1+'\')">✅</button>';
+  h+='</div><div class="bk-d"></div>';
+  h+='<div class="bk-p'+(w2?' won':m.winner&&!w2?' lost':'')+'"><span class="bk-s">'+s2+'</span><span class="bk-n">'+n2+'</span>';
+  if(canPick)h+='<button class="bk-pk'+(w2?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g2+'\')">✅</button>';
+  h+='</div></div>';return h;
+}
+// Seeding matchups
 function genSeedingMatchups(){
   const seedingWk=S.settings.seedingDate?S.weeks.find(w=>w.date===S.settings.seedingDate):null;
-  if(!seedingWk){alert('Seeding week not found in schedule.');return;}
-  const seeded=getSeededStandings();
-  const ms=[];
-  for(let i=0;i<seeded.length-1;i+=2){
-    ms.push({g1:seeded[i].id,g2:seeded[i+1].id,result:null});
-  }
-  if(seeded.length%2===1){
-    // Odd player: shadow match against last paired player
-    const lastPaired=ms[ms.length-1]?.g2;
-    ms.push({g1:seeded[seeded.length-1].id,g2:lastPaired||null,result:null,isShadow:!!lastPaired});
-  }
-  seedingWk.matchups=ms;
-  svW();
-  alert('Seeding week matchups generated: '+ms.length+' matches.');
+  if(!seedingWk){alert('Seeding week not found.');return;}
+  const seeded=getSeededStandings();const ms=[];
+  for(let i=0;i<seeded.length-1;i+=2)ms.push({g1:seeded[i].id,g2:seeded[i+1].id,result:null});
+  if(seeded.length%2===1){const lp=ms[ms.length-1]?.g2;ms.push({g1:seeded[seeded.length-1].id,g2:lp||null,result:null,isShadow:!!lp});}
+  seedingWk.matchups=ms;svW();
 }
-function clearSeedingMatchups(){
-  if(!confirm('Clear seeding week matchups?'))return;
-  const seedingWk=S.settings.seedingDate?S.weeks.find(w=>w.date===S.settings.seedingDate):null;
-  if(seedingWk){seedingWk.matchups=[];svW();}
-}
+function clearSeedingMatchups(){if(!confirm('Clear seeding matchups?'))return;const sw=S.settings.seedingDate?S.weeks.find(w=>w.date===S.settings.seedingDate):null;if(sw){sw.matchups=[];svW();}}
+// Generate NCAA-style 4-region bracket
 function bOrd(sz){if(sz===2)return[0,1];const h=bOrd(sz/2);return h.reduce((a,s)=>{a.push(s);a.push(sz-1-s);return a;},[]);}
-function genBracket(){const sd=getSeededStandings();const n=sd.length;if(n<2)return;let bs=2;while(bs<n)bs*=2;const seeds=Array.from({length:bs},(_,i)=>i<n?sd[i]:null);const ord=bOrd(bs).map(p=>seeds[p]);const ms=[];for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}const tr=Math.log2(bs);const all=[...ms];let prev=ms;for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}S.tournament={matches:all,totalRounds:tr,bracketSize:bs,champion:null};svT();}
-function setTW(mid,wid){const t=S.tournament;if(!t)return;const match=t.matches.find(m=>m.id===mid);if(!match)return;match.winner=wid;const next=t.matches.find(m=>m.feedsFrom&&m.feedsFrom.includes(mid));if(next){const idx=next.feedsFrom.indexOf(mid);if(idx===0)next.g1=wid;else next.g2=wid;next.winner=null;}const fin=t.matches.find(m=>m.round===t.totalRounds);t.champion=fin?.winner?gN(fin.winner):null;svT();}
+function genBracket(){
+  const sd=getSeededStandings();const n=sd.length;if(n<2)return;
+  // Determine bracket size per region
+  let total=2;while(total<n)total*=2;
+  const perRegion=total/4;
+  // Assign seeds to regions using serpentine
+  const regionSeeds=[[],[],[],[]];
+  for(let i=0;i<total;i++){const ri=seedToRegion(i+1);regionSeeds[ri].push(i<n?sd[i]:null);}
+  // Build bracket for each region
+  const regions=regionSeeds.map((seeds,ri)=>{
+    const regSize=seeds.length;let bs=2;while(bs<regSize)bs*=2;
+    const padded=Array.from({length:bs},(_,i)=>i<seeds.length?seeds[i]:null);
+    const ord=bOrd(bs).map(p=>padded[p]);
+    const ms=[];
+    for(let i=0;i<ord.length;i+=2){const a=ord[i],b=ord[i+1];const bye=!a||!b;ms.push({id:genId(),round:1,region:ri,g1:a?.id||null,g2:b?.id||null,winner:bye?(a?.id||b?.id):null,isBye:bye});}
+    const tr=Math.log2(bs);const all=[...ms];let prev=ms;
+    for(let r=2;r<=tr;r++){const rm=[];for(let i=0;i<prev.length;i+=2){const m={id:genId(),round:r,region:ri,g1:null,g2:null,winner:null,feedsFrom:[prev[i].id,prev[i+1]?.id]};if(prev[i].isBye)m.g1=prev[i].winner;if(prev[i+1]?.isBye)m.g2=prev[i+1].winner;rm.push(m);}all.push(...rm);prev=rm;}
+    // Auto-advance byes through rounds
+    let changed=true;
+    while(changed){changed=false;all.forEach(m=>{if(m.winner&&m.feedsFrom){const nx=all.find(x=>x.feedsFrom&&x.feedsFrom.includes(m.id));if(nx){const idx=nx.feedsFrom.indexOf(m.id);if(idx===0&&!nx.g1){nx.g1=m.winner;changed=true;}if(idx===1&&!nx.g2){nx.g2=m.winner;changed=true;}}}});}
+    return{name:REGION_NAMES[ri],matches:all,totalRounds:tr};
+  });
+  // Semis: R1 winner vs R4 winner, R2 winner vs R3 winner
+  const semis=[
+    {id:genId(),g1:null,g2:null,winner:null,feedsRegions:[0,3]},
+    {id:genId(),g1:null,g2:null,winner:null,feedsRegions:[1,2]}
+  ];
+  // Final
+  const final={id:genId(),g1:null,g2:null,winner:null,feedsSemis:[0,1]};
+  S.tournament={regions,semis,final,champion:null};
+  svT();
+}
+function setTW(mid,wid){
+  const t=S.tournament;if(!t)return;
+  // Search all regions, semis, and final for the match
+  let match=null;
+  t.regions.forEach(r=>{const m=r.matches.find(m=>m.id===mid);if(m)match=m;});
+  if(!match)match=t.semis.find(m=>m.id===mid);
+  if(!match&&t.final.id===mid)match=t.final;
+  if(!match)return;
+  match.winner=wid;
+  // Advance within region
+  t.regions.forEach(r=>{
+    const next=r.matches.find(m=>m.feedsFrom&&m.feedsFrom.includes(mid));
+    if(next){const idx=next.feedsFrom.indexOf(mid);if(idx===0)next.g1=wid;else next.g2=wid;next.winner=null;}
+    // Feed region winner to semis
+    const regionFinal=r.matches.filter(m=>m.round===r.totalRounds);
+    if(regionFinal.length===1&&regionFinal[0].winner){
+      const ri=t.regions.indexOf(r);
+      t.semis.forEach(s=>{if(s.feedsRegions){const si=s.feedsRegions.indexOf(ri);if(si===0)s.g1=regionFinal[0].winner;if(si===1)s.g2=regionFinal[0].winner;}});
+    }
+  });
+  // Advance semis to final
+  t.semis.forEach((s,i)=>{if(s.winner){const si=t.final.feedsSemis.indexOf(i);if(si===0)t.final.g1=s.winner;if(si===1)t.final.g2=s.winner;t.final.winner=null;}});
+  // Check champion
+  t.champion=t.final.winner?gN(t.final.winner):null;
+  svT();
+}
 
 // ─── WEEK FINALIZATION WORKFLOW ───────────────────────────────
 // Step 1: Submit Scores (scores page)
