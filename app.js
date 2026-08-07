@@ -701,15 +701,56 @@ function renderRegion(region,ri,seeded,rightSide){
 function renderBracketMatch(m,seeded,showPick,cls){
   const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
   if(m.isBye){return'<div class="'+cls+' bye"><div style="text-align:center;font-size:11px;color:var(--dim)">('+gs(m.winner)+') '+gN(m.winner)+' — BYE</div></div>';}
-  const n1=m.g1?gN(m.g1):'TBD',n2=m.g2?gN(m.g2):'TBD';
+  // For TBD slots, find the feeder match and show who's playing
+  function tbdLabel(slot){
+    if(!m.feedsFrom)return'TBD';
+    const feedId=m.feedsFrom[slot];if(!feedId)return'TBD';
+    // Search all regions for the feeder match
+    const t=S.tournament;let feeder=null;
+    if(t.regions)t.regions.forEach(r=>{const f=r.matches.find(x=>x.id===feedId);if(f)feeder=f;});
+    if(!feeder&&t.semis)feeder=t.semis.find(x=>x.id===feedId);
+    if(!feeder)return'TBD';
+    if(feeder.isBye)return gN(feeder.winner);
+    const fn1=feeder.g1?gN(feeder.g1):'?',fn2=feeder.g2?gN(feeder.g2):'?';
+    return'W: '+fn1+' / '+fn2;
+  }
+  // For semi/final TBD, show region winner info
+  function tbdRegionLabel(slot){
+    if(!m.feedsRegions)return tbdLabel(slot);
+    const ri=m.feedsRegions[slot];
+    if(ri==null)return'TBD';
+    const t=S.tournament;
+    const region=t.regions[ri];if(!region)return'TBD';
+    const regFinal=region.matches.filter(x=>x.round===region.totalRounds);
+    if(regFinal.length===1){
+      const rf=regFinal[0];
+      if(rf.g1&&rf.g2)return'W: '+gN(rf.g1)+' / '+gN(rf.g2);
+    }
+    return REGION_NAMES[ri]+' Winner';
+  }
+  function tbdFinalLabel(slot){
+    if(!m.feedsSemis)return'TBD';
+    const si=m.feedsSemis[slot];
+    const t=S.tournament;const semi=t.semis?.[si];
+    if(!semi)return'TBD';
+    if(semi.g1&&semi.g2)return'W: '+gN(semi.g1)+' / '+gN(semi.g2);
+    return'Semi '+(si+1)+' Winner';
+  }
+  const getLbl=(slot)=>{
+    if(m.feedsSemis)return tbdFinalLabel(slot);
+    if(m.feedsRegions)return tbdRegionLabel(slot);
+    return tbdLabel(slot);
+  };
+  const n1=m.g1?gN(m.g1):getLbl(0),n2=m.g2?gN(m.g2):getLbl(1);
   const s1=m.g1?gs(m.g1):'',s2=m.g2?gs(m.g2):'';
+  const isTbd1=!m.g1,isTbd2=!m.g2;
   const w1=m.winner===m.g1,w2=m.winner===m.g2;
   const canPick=isAdmin&&m.g1&&m.g2;
   let h='<div class="'+cls+'">';
-  h+='<div class="bk-p'+(w1?' won':m.winner&&!w1?' lost':'')+'"><span class="bk-s">'+s1+'</span><span class="bk-n">'+n1+'</span>';
+  h+='<div class="bk-p'+(w1?' won':m.winner&&!w1?' lost':'')+'"><span class="bk-s">'+s1+'</span><span class="bk-n"'+(isTbd1?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n1+'</span>';
   if(canPick)h+='<button class="bk-pk'+(w1?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g1+'\')">✅</button>';
   h+='</div><div class="bk-d"></div>';
-  h+='<div class="bk-p'+(w2?' won':m.winner&&!w2?' lost':'')+'"><span class="bk-s">'+s2+'</span><span class="bk-n">'+n2+'</span>';
+  h+='<div class="bk-p'+(w2?' won':m.winner&&!w2?' lost':'')+'"><span class="bk-s">'+s2+'</span><span class="bk-n"'+(isTbd2?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n2+'</span>';
   if(canPick)h+='<button class="bk-pk'+(w2?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g2+'\')">✅</button>';
   h+='</div></div>';return h;
 }
