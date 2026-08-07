@@ -620,7 +620,7 @@ function genScTeams(wn){
 }
 
 // ─── TOURNAMENT ──────────────────────────────────────────────
-const REGION_NAMES=["Prison's Lake","The Children's Home","Kegger Buzzsaw","The Sandbagger"];
+const REGION_NAMES=["Prisoner's Lake Region","The Children's Home Region","The Chili Bowl Region","The Sandbagger Region"];
 function renderTournament(){
   const seeded=getSeededStandings();
   const t=S.tournament;
