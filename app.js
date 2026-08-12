@@ -396,7 +396,15 @@ function renderScores(){
   let ni=isAdmin?'<select onchange="setNine(this.value)" style="width:auto"><option value="front"'+(wk?.nine==='front'?' selected':'')+'>Front 9 (Par '+FRONT_PAR+')</option><option value="back"'+(wk?.nine==='back'?' selected':'')+'>Back 9 (Par '+BACK_PAR+')</option></select>':'';
   let h='<div class="card"><div class="card-title">📝 Weekly Scores'+scoreBadge+'</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
   const ns=wk?.noShows||{};
-  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];
+  // For tournament weeks, only show players who have a matchup
+  const isTourneyWk=isTournamentWeek(scWk)||isSeedingWeek(scWk);
+  const tourneyPlayerIds=new Set();
+  if(isTourneyWk&&wk?.matchups){wk.matchups.forEach(m=>{if(m.g1)tourneyPlayerIds.add(m.g1);if(m.g2)tourneyPlayerIds.add(m.g2);});}
+  const scorePlayers=[...S.golfers].filter(g=>!isTourneyWk||tourneyPlayerIds.has(g.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(isTourneyWk&&!tourneyPlayerIds.size){
+    h+='<div style="text-align:center;padding:20px;color:var(--dim)">No matchups synced for this week yet. Sync from bracket on the Matchups tab.</div>';
+  }
+  scorePlayers.forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];
     // Use locked handicap for finalized weeks, current for unfinalized
     const hcp=wk?.lockedHcps?wk.lockedHcps[g.id]!=null?wk.lockedHcps[g.id]:eHcp(g,S.weeks):eHcp(g,S.weeks);
     const hcpVal=hcp!=null?hcp:0;const ov=(!isNS&&sc)?sc-par:null;const net=(!isNS&&sc)?sc-hcpVal:null;
@@ -713,17 +721,6 @@ function renderTournament(){
   const hasSeedingMatchups=seedingWk&&seedingWk.matchups&&seedingWk.matchups.length>0;
 
   let h='<div class="card"><div class="card-title">🏆 End of Season Tournament</div>';
-  // Seeding Week section
-  if(S.settings.seedingDate){
-    h+='<div style="margin-bottom:20px;padding:14px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px">';
-    h+='<div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:6px">🎯 Seeding Week — '+fD(S.settings.seedingDate)+'</div>';
-    if(seedingWk){
-      if(isAdmin&&!hasSeedingMatchups)h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">1v2, 3v4, etc. Only breaks ties.</div><button class="btn btn-primary btn-sm" onclick="genSeedingMatchups()">🎯 Generate Seeding Matchups</button>';
-      else if(hasSeedingMatchups){h+='<div style="font-size:12px;color:var(--dim)">Seeding matchups set.</div>';if(isAdmin)h+='<button class="btn btn-ghost btn-sm" onclick="clearSeedingMatchups()" style="margin-top:4px">Reset</button>';}
-      else h+='<div style="font-size:12px;color:var(--dim)">Admin will generate matchups.</div>';
-    }else h+='<div style="font-size:12px;color:var(--dim)">Date not found in schedule.</div>';
-    h+='</div>';
-  }
 
   if(!t){
     h+='<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:16px">🏆</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">Tournament Bracket</div><div style="color:var(--dim);margin-bottom:12px">4 Regions: '+REGION_NAMES.join(' | ')+'</div><div style="color:var(--dim);margin-bottom:20px;font-size:12px">Tiebreakers: Points → Wins → Lower HCP → Most Rounds → Seeding Week</div>'+(isAdmin&&seeded.length>=2?'<button class="btn btn-primary" onclick="genBracket()">Generate Bracket</button>':'')+'</div>';
