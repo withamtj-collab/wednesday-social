@@ -91,13 +91,23 @@ function getBracketMatchesForRound(tRound){
   else if(tRound===maxRR+2){matches.push(t.final);}
   return matches;
 }
+// Get all bracket matches that are ready to play (both players set, no winner yet, not a bye)
+function getReadyBracketMatches(){
+  const t=S.tournament;if(!t||!t.regions)return[];
+  const matches=[];
+  t.regions.forEach(r=>{r.matches.forEach(m=>{if(!m.isBye&&m.g1&&m.g2&&!m.winner)matches.push(m);});});
+  t.semis.forEach(m=>{if(m.g1&&m.g2&&!m.winner)matches.push(m);});
+  if(t.final&&t.final.g1&&t.final.g2&&!t.final.winner)matches.push(t.final);
+  return matches;
+}
 function syncBracketToWeek(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
-  const tRound=getTournamentRound(wn);if(!tRound)return;
-  const bm=getBracketMatchesForRound(tRound);
-  const ms=[];
-  bm.forEach(m=>{if(m.isBye||!m.g1||!m.g2)return;ms.push({g1:m.g1,g2:m.g2,result:null,bracketMatchId:m.id});});
+  // Get all matches that are ready to play right now
+  const ready=getReadyBracketMatches();
+  if(!ready.length){alert('No bracket matches are ready to play. Ensure prior round winners have been advanced.');return;}
+  const ms=ready.map(m=>({g1:m.g1,g2:m.g2,result:null,bracketMatchId:m.id}));
   wk.matchups=ms;wk.isTournament=true;svW();
+  alert(ms.length+' tournament matchup'+(ms.length!==1?'s':'')+' synced from bracket.');
 }
 // Get tournament round label
 function getTournamentRoundLabel(tRound){
