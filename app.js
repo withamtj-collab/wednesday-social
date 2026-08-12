@@ -36,10 +36,10 @@ function hcpRound(raw){if(raw===null)return null;const dec=raw-Math.floor(raw);r
 function calcHcp(scores,weeks){const raw=calcRawHcp(scores,weeks);if(raw===null)return 0;return Math.min(MAX_HANDICAP,hcpRound(raw));}
 function gSc(gid,wks){return(wks||S.weeks).filter(w=>w.scores&&w.scores[gid]&&!(w.noShows&&w.noShows[gid])).map(w=>({wn:w.wn,score:w.scores[gid]}));}
 // Handicap: updates every 3 completed non-scramble weeks (3, 6, 9, etc.)
-function completedWeeks(){return S.weeks.filter(w=>!w.isScramble&&w.scores&&Object.keys(w.scores).length>0).length;}
+function completedWeeks(){return S.weeks.filter(w=>!w.isScramble&&!w.isRainOut&&w.scores&&Object.keys(w.scores).length>0).length;}
 function hcpCutoff(){const cw=completedWeeks();return Math.floor(cw/3)*3;}
 function gScHcp(gid){
-  const allPlayed=S.weeks.filter(w=>!w.isScramble&&w.scores&&Object.keys(w.scores).length>0);
+  const allPlayed=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut&&w.scores&&Object.keys(w.scores).length>0);
   const cp=Math.floor(allPlayed.length/3)*3;
   if(cp===0)return[];
   const cutoffWks=allPlayed.slice(0,cp);
@@ -129,7 +129,7 @@ function getMatchWinner(m,wk){
   const n1=s1-h1,n2=s2-h2;
   return n1<n2?m.g1:n2<n1?m.g2:'tie';
 }
-function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
+function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble||wk.isRainOut)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
 if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
 const winner=getMatchWinner(m,wk);if(!winner)return;
 if(winner==='tie')t++;else if(winner===gid)w++;else l++;});});return{w,l,t};}
@@ -230,7 +230,7 @@ function renderStandings(){
 let resWk=1;
 function renderResults(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const availWeeks=S.weeks.filter(w=>w.date<=sd);
+  const availWeeks=S.weeks.filter(w=>!w.isRainOut&&w.date<=sd);
   if(!availWeeks.length){document.getElementById('page-results').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No regular season weeks available.</div>';return;}
   if(!availWeeks.find(w=>w.wn===resWk))resWk=availWeeks[0].wn;
   const wk=S.weeks.find(w=>w.wn===resWk);
@@ -324,7 +324,7 @@ function renderResults(){
 let scWk=1;
 function renderScores(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const nonScramble=S.weeks.filter(w=>!w.isScramble&&w.date<=sd);
+  const nonScramble=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut&&w.date<=sd);
   if(!nonScramble.length){document.getElementById('page-scores').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
   if(!nonScramble.find(w=>w.wn===scWk))scWk=nonScramble[0].wn;
   const wk=S.weeks.find(w=>w.wn===scWk);const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
@@ -369,7 +369,7 @@ function togNoShow(gid){const wk=S.weeks.find(w=>w.wn===scWk);if(!wk)return;if(!
 let mWk=1;
 function renderMatchups(){
   const rw=regW();const sd=S.settings.seedingDate||'9999-99-99';
-  const rws=S.weeks.slice(0,rw).filter(w=>!w.isScramble&&w.date<=sd);
+  const rws=S.weeks.slice(0,rw).filter(w=>!w.isScramble&&!w.isRainOut&&w.date<=sd);
   if(!rws.length){document.getElementById('page-matchups').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No matchup weeks available.</div>';return;}
   // Check if seeding week should be visible (prior week must be finalized)
   const seedingWk=S.settings.seedingDate?rws.find(w=>w.date===S.settings.seedingDate):null;
@@ -488,7 +488,7 @@ function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const
 
 // ─── SCRAMBLE ────────────────────────────────────────────────
 function renderScramble(){
-  const sw=S.weeks.filter(w=>w.isScramble);let h='';
+  const sw=S.weeks.filter(w=>w.isScramble&&!w.isRainOut);let h='';
   if(isAdmin){h+='<div class="card"><div class="card-title">⚙️ Scramble Settings</div><div style="font-size:13px;color:var(--dim);margin-bottom:12px">Toggle weeks as scramble weeks. No matchups during scrambles.</div><div class="flex-wrap" style="margin-bottom:16px">';S.weeks.forEach(w=>{h+='<button class="chip'+(w.isScramble?' active':'')+'" onclick="togScWk('+w.wn+')">Wk '+w.wn+' – '+fD(w.date)+'</button>';});h+='</div></div>';}
   if(!sw.length){h+='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Toggle weeks above to create scramble weeks.':'No scramble weeks scheduled yet.')+'</div>';}
   sw.forEach(s=>{
@@ -620,7 +620,7 @@ function genScTeams(wn){
 }
 
 // ─── TOURNAMENT ──────────────────────────────────────────────
-const REGION_NAMES=["Prisoner's Lake Region","The Children's Home Region","The Chili Bowl Region","The Sandbagger Region"];
+const REGION_NAMES=["Prisoner's Lake Region","The Children's Home Region","The Chili Bowl Region","Behringer Crawford Region"];
 function renderTournament(){
   const seeded=getSeededStandings();
   const t=S.tournament;
@@ -700,7 +700,7 @@ function renderRegion(region,ri,seeded,rightSide){
 }
 function renderBracketMatch(m,seeded,showPick,cls){
   const gs=id=>seeded.find(g=>g.id===id)?.seed||'?';
-  if(m.isBye){return'<div class="'+cls+' bye"><div style="text-align:center;font-size:11px;color:var(--dim)">('+gs(m.winner)+') '+gN(m.winner)+' — BYE</div></div>';}
+  if(m.isBye){const bHcp=safeHcp(S.golfers.find(g=>g.id===m.winner),S.weeks);return'<div class="'+cls+' bye"><div style="text-align:center;font-size:11px;color:var(--dim)">('+gs(m.winner)+') '+gN(m.winner)+' <span style="color:var(--gold)">('+bHcp+')</span> — BYE</div></div>';}
   // For TBD slots, find the feeder match and show who's playing
   function tbdLabel(slot){
     if(!m.feedsFrom)return'TBD';
@@ -741,16 +741,19 @@ function renderBracketMatch(m,seeded,showPick,cls){
     if(m.feedsRegions)return tbdRegionLabel(slot);
     return tbdLabel(slot);
   };
+  const getHcp=(id)=>{const g=S.golfers.find(g=>g.id===id);return g?safeHcp(g,S.weeks):0;};
   const n1=m.g1?gN(m.g1):getLbl(0),n2=m.g2?gN(m.g2):getLbl(1);
+  const hcp1=m.g1?' <span style="font-size:9px;color:var(--gold)">('+getHcp(m.g1)+')</span>':'';
+  const hcp2=m.g2?' <span style="font-size:9px;color:var(--gold)">('+getHcp(m.g2)+')</span>':'';
   const s1=m.g1?gs(m.g1):'',s2=m.g2?gs(m.g2):'';
   const isTbd1=!m.g1,isTbd2=!m.g2;
   const w1=m.winner===m.g1,w2=m.winner===m.g2;
   const canPick=isAdmin&&m.g1&&m.g2;
   let h='<div class="'+cls+'">';
-  h+='<div class="bk-p'+(w1?' won':m.winner&&!w1?' lost':'')+'"><span class="bk-s">'+s1+'</span><span class="bk-n"'+(isTbd1?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n1+'</span>';
+  h+='<div class="bk-p'+(w1?' won':m.winner&&!w1?' lost':'')+'"><span class="bk-s">'+s1+'</span><span class="bk-n"'+(isTbd1?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n1+hcp1+'</span>';
   if(canPick)h+='<button class="bk-pk'+(w1?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g1+'\')">✅</button>';
   h+='</div><div class="bk-d"></div>';
-  h+='<div class="bk-p'+(w2?' won':m.winner&&!w2?' lost':'')+'"><span class="bk-s">'+s2+'</span><span class="bk-n"'+(isTbd2?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n2+'</span>';
+  h+='<div class="bk-p'+(w2?' won':m.winner&&!w2?' lost':'')+'"><span class="bk-s">'+s2+'</span><span class="bk-n"'+(isTbd2?' style="color:var(--dim);font-style:italic;font-size:10px"':'')+'>'+n2+hcp2+'</span>';
   if(canPick)h+='<button class="bk-pk'+(w2?' won':'')+'" onclick="setTW(\''+m.id+"','"+m.g2+'\')">✅</button>';
   h+='</div></div>';return h;
 }
@@ -953,7 +956,7 @@ function currentWeekNum(){
 let hcpWk=1;
 function renderHandicaps(){
   const sdH=S.settings.seedingDate||'9999-99-99';
-  const nonScrambleH=S.weeks.filter(w=>!w.isScramble&&w.date<=sdH);
+  const nonScrambleH=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut&&w.date<=sdH);
   if(!nonScrambleH.length){document.getElementById('page-handicaps').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
   if(!nonScrambleH.find(w=>w.wn===hcpWk))hcpWk=nonScrambleH[0].wn;
   const cp=hcpCutoff();const nextCp=cp+3;
@@ -1090,6 +1093,10 @@ function renderAdmin(){
   h+='<div class="card"><div class="card-title">🏌️ Manage Golfers</div><div class="flex-wrap" style="margin-bottom:20px"><input id="nn" placeholder="Golfer name" style="flex:1;min-width:150px" onkeydown="if(event.key===\'Enter\')aAdd()"><input id="nh" type="number" placeholder="Prior HCP" style="width:120px" min="0" max="15"><button class="btn btn-primary" onclick="aAdd()">+ Add Golfer</button></div><div class="overflow-x"><table><thead><tr><th>Name</th><th>Prior HCP</th><th>Current HCP</th><th>Dues</th><th>Actions</th></tr></thead><tbody>';
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const hcp=eHcp(g,S.weeks);h+='<tr><td style="font-weight:600">'+g.name+'</td><td>'+(g.priorHcp!=null?g.priorHcp:'-')+'</td><td>'+(hcp!=null?'<span class="badge badge-gold">'+hcp+'</span>':'<span class="badge badge-blue">NEW</span>')+'</td><td><label class="checkbox"><div class="checkbox-box'+(g.paidDues?' checked':'')+'" onclick="aTD(\''+g.id+'\')"></div>'+(g.paidDues?'Paid':'Unpaid')+'</label></td><td><div class="flex-wrap"><button class="btn btn-ghost btn-sm" onclick="aEdit(\''+g.id+'\')">Edit</button><button class="btn btn-danger btn-sm" onclick="aRm(\''+g.id+'\')">✕</button></div></td></tr>';});
   h+='</tbody></table></div><div style="margin-top:12px;font-size:13px;color:var(--dim)">'+S.golfers.length+' golfer'+(S.golfers.length!==1?'s':'')+' registered</div></div>';
+  // Rain-out management
+  h+='<div class="card"><div class="card-title">🌧️ Rain Outs</div><div style="font-size:13px;color:var(--dim);margin-bottom:12px">Mark a week as rained out. All scores, matchups, and data for that week will be cleared.</div><div class="flex-wrap">';
+  S.weeks.forEach(w=>{h+='<button class="chip'+(w.isRainOut?' active" style="border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,.1)':'')+'" onclick="togRainOut('+w.wn+')">Wk '+w.wn+' – '+fD(w.date)+(w.isRainOut?' 🌧️':'')+'</button>';});
+  h+='</div></div>';
   h+='<div class="card danger-zone"><div class="card-title">⚠️ Danger Zone</div><button class="btn btn-danger" onclick="aReset()">Reset All League Data</button><div style="font-size:12px;color:var(--dim);margin-top:8px">Permanently deletes everything.</div></div>';
   document.getElementById('page-admin').innerHTML=h;
 }
@@ -1113,6 +1120,22 @@ function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDu
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
 function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',announcementImg:'',hcpOverrides:{},weekSubmissions:{}};}
 function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}
+function togRainOut(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  if(!wk.isRainOut){
+    if(!confirm('Mark Week '+wn+' ('+fD(wk.date)+') as a rain out? All scores, matchups, and data for this week will be cleared.'))return;
+    wk.isRainOut=true;
+    wk.scores={};wk.noShows={};wk.matchups=[];wk.matchupExcluded=[];
+    wk.isScramble=false;wk.scrambleTeams=[];wk.scrambleExcluded=[];wk.scrambleGuests=[];wk.scramblePublished=false;
+    wk.lockedHcps=null;
+    const subKey='w'+wn;if(S.weekSubmissions[subKey])delete S.weekSubmissions[subKey];
+    sv('weekSubmissions',S.weekSubmissions);
+  }else{
+    if(!confirm('Remove rain out status for Week '+wn+'?'))return;
+    wk.isRainOut=false;
+  }
+  svW();renderAdmin();
+}
 function uploadIcon(input){
   const file=input.files[0];if(!file)return;
   if(file.size>102400){alert('Image too large. Max 100KB.');return;}
