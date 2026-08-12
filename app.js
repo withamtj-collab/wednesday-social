@@ -2,7 +2,7 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const FRONT_PAR=36,BACK_PAR=34,MAX_HANDICAP=15,TOURNEY_WEEKS=6;
 const genId=()=>Math.random().toString(36).substr(2,9);
-let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',announcementImg:'',hcpOverrides:{},weekSubmissions:{}};
+let S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',announcementImg:'',hcpOverrides:{},weekSubmissions:{},specialMatchups:[]};
 let isAdmin=false,curPage='standings';
 let skP=[],skC=5,jNine='front',jP=[],jC=5,jW={},jPd={};
 
@@ -14,7 +14,7 @@ function loadData(){
   },10000);
   db.ref('league').on('value',snap=>{
     clearTimeout(timeout);
-    const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.announcementImg=d.announcementImg||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};}
+    const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.announcementImg=d.announcementImg||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};S.specialMatchups=d.specialMatchups?Object.values(d.specialMatchups):[];}
     document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();updateSiteIcon();renderPage();
   },err=>{
     clearTimeout(timeout);
@@ -327,7 +327,7 @@ function renderResults(){
       const h1=wk.lockedHcps?wk.lockedHcps[m.g1]||0:g1?safeHcp(g1,S.weeks):0;
       const h2=wk.lockedHcps?(m.g2?wk.lockedHcps[m.g2]||0:0):g2?safeHcp(g2,S.weeks):0;
       const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
-      const shadowTag=m.isShadow?'<span style="font-size:10px;color:#60a5fa;margin-left:6px">👤 Shadow</span>':'';
+      const shadowTag=m.isShadow?'<span style="font-size:10px;color:#60a5fa;margin-left:6px">👤 Shadow</span>':(m.isSpecial?'<span style="font-size:10px;color:var(--gold);margin-left:6px">⚡ Special</span>':'');
 
       // Compute winner: use stored result if resolved, otherwise calculate from scores
       let winner=m.result||null;
@@ -510,7 +510,7 @@ function renderMatchupsInner(rws){
   if(ms.length){h+='<div class="grid-auto-lg">';
     const ns=wk?.noShows||{};
     ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=wk.lockedHcps?wk.lockedHcps[m.g1]||0:g1?safeHcp(g1,S.weeks):0;const h2=wk.lockedHcps?(m.g2?wk.lockedHcps[m.g2]||0:0):g2?safeHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
-      const shadowTag=m.isShadow?'<div style="font-size:10px;color:#60a5fa;margin-bottom:4px">👤 Shadow Match — result counts for '+gN(m.g1)+' only</div>':'';
+      const shadowTag=m.isShadow?'<div style="font-size:10px;color:#60a5fa;margin-bottom:4px">👤 Shadow Match — result counts for '+gN(m.g1)+' only</div>':(m.isSpecial?'<div style="font-size:10px;color:var(--gold);margin-bottom:4px">⚡ Special Matchup</div>':'');
       h+='<div class="match-card"'+(m.isShadow?' style="border-color:rgba(96,165,250,.4);border-style:dashed"':'')+'><div class="match-label">Match '+(i+1)+'</div>'+shadowTag+'<div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
       (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>'+(m.result?'<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>':'')+'</div>';});
     h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Select players above, then click 🎲 Random Matchups.':'No matchups yet.')+'</div>';}
@@ -1192,6 +1192,42 @@ function renderAdmin(){
   h+='<div class="card"><div class="card-title">🌧️ Rain Outs</div><div style="font-size:13px;color:var(--dim);margin-bottom:12px">Mark a week as rained out. All scores, matchups, and data for that week will be cleared.</div><div class="flex-wrap">';
   S.weeks.forEach(w=>{h+='<button class="chip'+(w.isRainOut?' active" style="border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,.1)':'')+'" onclick="togRainOut('+w.wn+')">Wk '+w.wn+' – '+fD(w.date)+(w.isRainOut?' 🌧️':'')+'</button>';});
   h+='</div></div>';
+  // Special Matchups
+  h+='<div class="card"><div class="card-title">⚡ Special Matchups</div><div style="font-size:13px;color:var(--dim);margin-bottom:12px">Create a one-time matchup between two players. Points count toward standings and seeding. During tournament week 1, both players must be on byes.</div>';
+  // Existing special matchups
+  const specials=S.specialMatchups||[];
+  if(specials.length){
+    h+='<div style="margin-bottom:16px">';
+    specials.forEach((sm,si)=>{
+      const wk=S.weeks.find(w=>w.wn===sm.wn);
+      h+='<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">';
+      h+='<span style="font-size:12px;color:var(--dim)">Wk '+sm.wn+(wk?' ('+fD(wk.date)+')':'')+'</span>';
+      h+='<span style="font-weight:600">'+gN(sm.g1)+'</span><span style="color:var(--dim)">vs</span><span style="font-weight:600">'+gN(sm.g2)+'</span>';
+      if(sm.result)h+='<span class="badge badge-accent">Winner: '+gN(sm.result)+'</span>';
+      else if(sm.result==='tie')h+='<span class="badge badge-gold">TIE</span>';
+      h+='<button class="btn btn-danger btn-sm" onclick="removeSpecialMatchup('+si+')">✕</button>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+  // Add new special matchup form
+  const availWks=S.weeks.filter(w=>!w.isRainOut&&!w.isScramble);
+  let wkOpts='<option value="">Select week...</option>';
+  availWks.forEach(w=>{
+    const isTw=isTournamentWeek(w.wn);const tr=isTw?getTournamentRound(w.wn):0;
+    let label='Week '+w.wn+' – '+fD(w.date);
+    if(isTw)label+=' ('+getTournamentRoundLabel(tr)+')';
+    wkOpts+='<option value="'+w.wn+'">'+label+'</option>';
+  });
+  let plOpts='<option value="">Select player...</option>';
+  [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{plOpts+='<option value="'+g.id+'">'+g.name+'</option>';});
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  h+='<select id="spec-wk" style="width:auto">'+wkOpts+'</select>';
+  h+='<select id="spec-p1" style="width:auto">'+plOpts+'</select>';
+  h+='<span style="color:var(--dim);font-weight:600">vs</span>';
+  h+='<select id="spec-p2" style="width:auto">'+plOpts+'</select>';
+  h+='<button class="btn btn-primary btn-sm" onclick="addSpecialMatchup()">+ Add</button>';
+  h+='</div></div>';
   h+='<div class="card danger-zone"><div class="card-title">⚠️ Danger Zone</div><button class="btn btn-danger" onclick="aReset()">Reset All League Data</button><div style="font-size:12px;color:var(--dim);margin-top:8px">Permanently deletes everything.</div></div>';
   document.getElementById('page-admin').innerHTML=h;
 }
@@ -1213,7 +1249,7 @@ function aAdd(){const n=document.getElementById('nn').value.trim(),hv=document.g
 function aRm(id){if(confirm('Remove this golfer?')){S.golfers=S.golfers.filter(g=>g.id!==id);svG();}}
 function aTD(id){const g=S.golfers.find(g=>g.id===id);if(g){g.paidDues=!g.paidDues;svG();}}
 function aEdit(id){const g=S.golfers.find(g=>g.id===id);if(!g)return;const n=prompt('Golfer name:',g.name);if(n===null)return;const h=prompt('Prior handicap (blank=none):',g.priorHcp!=null?g.priorHcp:'');if(h===null)return;g.name=n.trim()||g.name;g.priorHcp=h!==''?Math.min(MAX_HANDICAP,Math.max(0,parseInt(h)||0)):null;svG();}
-function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',announcementImg:'',hcpOverrides:{},weekSubmissions:{}};}
+function aReset(){if(!confirm('Reset ALL league data?'))return;if(!confirm('Are you absolutely sure?'))return;db.ref('league').set(null);S={golfers:[],weeks:[],settings:{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false},tournament:null,scrambleHistory:[],announcement:'',announcementImg:'',hcpOverrides:{},weekSubmissions:{},specialMatchups:[]};}
 function togTab(key){S.settings[key]=!S.settings[key];svS();renderNav();renderAdmin();}
 function togRainOut(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
@@ -1230,6 +1266,46 @@ function togRainOut(wn){
     wk.isRainOut=false;
   }
   svW();renderAdmin();
+}
+// Special Matchups
+function svSpecial(){sv('specialMatchups',S.specialMatchups.reduce((o,s,i)=>{o[i]=s;return o;},{}));}
+function addSpecialMatchup(){
+  const wn=parseInt(document.getElementById('spec-wk')?.value);
+  const g1=document.getElementById('spec-p1')?.value;
+  const g2=document.getElementById('spec-p2')?.value;
+  if(!wn){alert('Select a week.');return;}
+  if(!g1||!g2){alert('Select both players.');return;}
+  if(g1===g2){alert('Select two different players.');return;}
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  // Validate: during tournament week 1, both players must be on byes
+  if(isTournamentWeek(wn)&&S.tournament){
+    const tRound=getTournamentRound(wn);
+    if(tRound===1){
+      // Check both players have byes in Round 1
+      let g1Bye=false,g2Bye=false;
+      S.tournament.regions.forEach(r=>{r.matches.forEach(m=>{
+        if(m.round===1&&m.isBye){if(m.winner===g1)g1Bye=true;if(m.winner===g2)g2Bye=true;}
+      });});
+      if(!g1Bye||!g2Bye){alert('During tournament Round 1, both players must be on byes. '+(!g1Bye?gN(g1):'')+((!g1Bye&&!g2Bye)?' and ':'')+(!g2Bye?gN(g2):'')+' ha'+((!g1Bye&&!g2Bye)?'ve':'s')+' a match this round.');return;}
+    }else{alert('Special matchups during the tournament can only be created for the first round (bye players only).');return;}
+  }
+  // Add to the week's matchups as a special match
+  if(!wk.matchups)wk.matchups=[];
+  const matchup={g1,g2,result:null,isSpecial:true};
+  wk.matchups.push(matchup);
+  // Also store in specialMatchups for admin tracking
+  S.specialMatchups.push({wn,g1,g2,result:null});
+  svW();svSpecial();renderAdmin();
+  alert('Special matchup added: '+gN(g1)+' vs '+gN(g2)+' in Week '+wn);
+}
+function removeSpecialMatchup(idx){
+  if(!confirm('Remove this special matchup?'))return;
+  const sm=S.specialMatchups[idx];if(!sm)return;
+  // Remove from the week's matchups
+  const wk=S.weeks.find(w=>w.wn===sm.wn);
+  if(wk&&wk.matchups){wk.matchups=wk.matchups.filter(m=>!(m.isSpecial&&m.g1===sm.g1&&m.g2===sm.g2));}
+  S.specialMatchups.splice(idx,1);
+  svW();svSpecial();renderAdmin();
 }
 function uploadIcon(input){
   const file=input.files[0];if(!file)return;
