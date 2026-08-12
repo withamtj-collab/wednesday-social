@@ -73,8 +73,41 @@ function safeHcp(g,wks){const h=eHcp(g,wks);return h!=null?h:0;}
 // Check if golfer has an established handicap
 function hasHcp(g){return eHcp(g,S.weeks)!=null;}
 // Check if we're past the seeding date (handicaps frozen)
-function isSeedingWeek(wn){if(!S.settings.seedingDate)return false;const wk=S.weeks.find(w=>w.wn===wn);return wk&&wk.date>=S.settings.seedingDate;}
+function isSeedingWeek(wn){if(!S.settings.seedingDate)return false;const wk=S.weeks.find(w=>w.wn===wn);return wk&&wk.date===S.settings.seedingDate;}
+function isTournamentWeek(wn){if(!S.settings.seedingDate)return false;const wk=S.weeks.find(w=>w.wn===wn);return wk&&wk.date>S.settings.seedingDate&&!wk.isScramble&&!wk.isRainOut;}
 function areHcpsFrozen(){if(!S.settings.seedingDate)return false;return S.weeks.some(w=>w.date>=S.settings.seedingDate&&w.scores&&Object.keys(w.scores).length>0);}
+function getTournamentRound(wn){
+  if(!S.settings.seedingDate)return 0;
+  const postSeed=S.weeks.filter(w=>w.date>S.settings.seedingDate&&!w.isScramble&&!w.isRainOut).sort((a,b)=>a.wn-b.wn);
+  const idx=postSeed.findIndex(w=>w.wn===wn);
+  return idx>=0?idx+1:0;
+}
+function getBracketMatchesForRound(tRound){
+  const t=S.tournament;if(!t||!t.regions)return[];
+  const matches=[];
+  const maxRR=Math.max(...t.regions.map(r=>r.totalRounds));
+  if(tRound<=maxRR){t.regions.forEach(r=>{if(tRound<=r.totalRounds)r.matches.filter(m=>m.round===tRound).forEach(m=>matches.push(m));});}
+  else if(tRound===maxRR+1){t.semis.forEach(m=>matches.push(m));}
+  else if(tRound===maxRR+2){matches.push(t.final);}
+  return matches;
+}
+function syncBracketToWeek(wn){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  const tRound=getTournamentRound(wn);if(!tRound)return;
+  const bm=getBracketMatchesForRound(tRound);
+  const ms=[];
+  bm.forEach(m=>{if(m.isBye||!m.g1||!m.g2)return;ms.push({g1:m.g1,g2:m.g2,result:null,bracketMatchId:m.id});});
+  wk.matchups=ms;wk.isTournament=true;svW();
+}
+// Get tournament round label
+function getTournamentRoundLabel(tRound){
+  const t=S.tournament;if(!t||!t.regions)return'Tournament Round '+tRound;
+  const maxRR=Math.max(...t.regions.map(r=>r.totalRounds));
+  if(tRound<=maxRR)return'Tournament Round '+tRound;
+  if(tRound===maxRR+1)return'Semifinals';
+  if(tRound===maxRR+2)return'Championship';
+  return'Tournament';
+}
 // Get seeded standings with proper tiebreakers: points → wins → lower HCP → most rounds
 function getSeededStandings(){
   const rw=regW();
@@ -230,13 +263,19 @@ function renderStandings(){
 let resWk=1;
 function renderResults(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const availWeeks=S.weeks.filter(w=>!w.isRainOut&&w.date<=sd);
+  const availWeeks=S.weeks.filter(w=>!w.isRainOut);
   if(!availWeeks.length){document.getElementById('page-results').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No regular season weeks available.</div>';return;}
   if(!availWeeks.find(w=>w.wn===resWk))resWk=availWeeks[0].wn;
   const wk=S.weeks.find(w=>w.wn===resWk);
   const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
   const ns=wk?.noShows||{};
-  let wo=availWeeks.map(w=>'<option value="'+w.wn+'"'+(w.wn===resWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(w.isScramble?' (Scramble)':'')+'</option>').join('');
+  let wo=availWeeks.map(w=>{
+    const isSd=S.settings.seedingDate&&w.date===S.settings.seedingDate;
+    const isTw=isTournamentWeek(w.wn);const tr=isTw?getTournamentRound(w.wn):0;
+    let label='Week '+w.wn+' – '+fD(w.date);
+    if(w.isScramble)label+=' (Scramble)';else if(isSd)label+=' (Seeding)';else if(isTw)label+=' ('+getTournamentRoundLabel(tr)+')';
+    return'<option value="'+w.wn+'"'+(w.wn===resWk?' selected':'')+'>'+label+'</option>';
+  }).join('');
 
   let h='<div class="card"><div class="card-title">📋 Weekly Results Summary</div>';
   h+='<div class="flex-between" style="margin-bottom:20px"><select onchange="resWk=+this.value;renderResults()" style="width:auto">'+wo+'</select>';
@@ -324,13 +363,21 @@ function renderResults(){
 let scWk=1;
 function renderScores(){
   const sd=S.settings.seedingDate||'9999-99-99';
-  const nonScramble=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut&&w.date<=sd);
+  const nonScramble=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut);
   if(!nonScramble.length){document.getElementById('page-scores').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No scoring weeks available.</div>';return;}
   if(!nonScramble.find(w=>w.wn===scWk))scWk=nonScramble[0].wn;
   const wk=S.weeks.find(w=>w.wn===scWk);const par=wk?.nine==='front'?FRONT_PAR:BACK_PAR;
-  let wo=nonScramble.map(w=>'<option value="'+w.wn+'"'+(w.wn===scWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+'</option>').join('');
+  let wo=nonScramble.map(w=>{
+    const isSd=S.settings.seedingDate&&w.date===S.settings.seedingDate;
+    const isTw=isTournamentWeek(w.wn);const tr=isTw?getTournamentRound(w.wn):0;
+    let label='Week '+w.wn+' – '+fD(w.date);
+    if(isSd)label+=' (Seeding)';else if(isTw)label+=' ('+getTournamentRoundLabel(tr)+')';
+    return'<option value="'+w.wn+'"'+(w.wn===scWk?' selected':'')+'>'+label+'</option>';
+  }).join('');
+  const isTourneyScore=isTournamentWeek(scWk);const tRoundScore=isTourneyScore?getTournamentRound(scWk):0;
+  let scoreBadge=isTourneyScore?' <span class="badge badge-accent">'+getTournamentRoundLabel(tRoundScore)+'</span>':(isSeedingWeek(scWk)?' <span class="badge badge-gold">Seeding Week</span>':'');
   let ni=isAdmin?'<select onchange="setNine(this.value)" style="width:auto"><option value="front"'+(wk?.nine==='front'?' selected':'')+'>Front 9 (Par '+FRONT_PAR+')</option><option value="back"'+(wk?.nine==='back'?' selected':'')+'>Back 9 (Par '+BACK_PAR+')</option></select>':'';
-  let h='<div class="card"><div class="card-title">📝 Weekly Scores</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
+  let h='<div class="card"><div class="card-title">📝 Weekly Scores'+scoreBadge+'</div><div class="flex-between" style="margin-bottom:20px"><div class="flex-wrap"><select onchange="scWk=+this.value;renderScores()" style="width:auto">'+wo+'</select>'+ni+'</div><div style="font-size:13px;color:var(--dim)">'+(wk?.nine==='front'?'Front 9':'Back 9')+' | Par: <strong style="color:var(--accent)">'+par+'</strong></div></div><div class="overflow-x"><table><thead><tr><th>Golfer</th>'+(isAdmin?'<th>No Show</th>':'')+'<th>Score</th><th>+/-</th><th>HCP</th><th>Net</th></tr></thead><tbody>';
   const ns=wk?.noShows||{};
   [...S.golfers].sort((a,b)=>a.name.localeCompare(b.name)).forEach(g=>{const isNS=ns[g.id];const sc=wk?.scores?.[g.id];
     // Use locked handicap for finalized weeks, current for unfinalized
@@ -369,7 +416,7 @@ function togNoShow(gid){const wk=S.weeks.find(w=>w.wn===scWk);if(!wk)return;if(!
 let mWk=1;
 function renderMatchups(){
   const rw=regW();const sd=S.settings.seedingDate||'9999-99-99';
-  const rws=S.weeks.slice(0,rw).filter(w=>!w.isScramble&&!w.isRainOut&&w.date<=sd);
+  const rws=S.weeks.filter(w=>!w.isScramble&&!w.isRainOut);
   if(!rws.length){document.getElementById('page-matchups').innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--dim)">No matchup weeks available.</div>';return;}
   // Check if seeding week should be visible (prior week must be finalized)
   const seedingWk=S.settings.seedingDate?rws.find(w=>w.date===S.settings.seedingDate):null;
@@ -391,13 +438,33 @@ function renderMatchups(){
 function renderMatchupsInner(rws){
   const wk=S.weeks.find(w=>w.wn===mWk);
   const isSeedWk=S.settings.seedingDate&&wk?.date===S.settings.seedingDate;
-  let opts=rws.map(w=>'<option value="'+w.wn+'"'+(w.wn===mWk?' selected':'')+'>Week '+w.wn+' – '+fD(w.date)+(S.settings.seedingDate&&w.date===S.settings.seedingDate?' (Seeding)':'')+'</option>').join('');
+  const isTourney=isTournamentWeek(mWk);
+  const tRound=isTourney?getTournamentRound(mWk):0;
+  const tLabel=tRound?getTournamentRoundLabel(tRound):'';
+
+  let opts=rws.map(w=>{
+    const isSd=S.settings.seedingDate&&w.date===S.settings.seedingDate;
+    const isTw=isTournamentWeek(w.wn);const tr=isTw?getTournamentRound(w.wn):0;
+    let label='Week '+w.wn+' – '+fD(w.date);
+    if(isSd)label+=' (Seeding)';
+    else if(isTw)label+=' ('+getTournamentRoundLabel(tr)+')';
+    return'<option value="'+w.wn+'"'+(w.wn===mWk?' selected':'')+'>'+label+'</option>';
+  }).join('');
+
   let ab='';
   if(isAdmin){
     if(isSeedWk){ab='<button class="btn btn-primary" onclick="genSeedingMatchups()">🎯 Generate Seeded Matchups</button>';}
+    else if(isTourney){
+      const hasMatchups=wk?.matchups?.length>0;
+      ab=hasMatchups?'<span class="badge badge-accent">Synced from Bracket</span>':'<button class="btn btn-primary" onclick="syncBracketToWeek('+mWk+')">🏆 Sync from Bracket</button>';
+    }
     else{ab='<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatch()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatch()">⚡ Resolve</button></div>';}
   }
-  let h='<div class="card"><div class="card-title">⚔️ Weekly Matchups'+(isSeedWk?' <span class="badge badge-gold">Seeding Week</span>':'')+'</div><div class="flex-between" style="margin-bottom:20px"><select onchange="mWk=+this.value;renderMatchups()" style="width:auto">'+opts+'</select>'+ab+'</div>';
+  let titleBadge='';
+  if(isSeedWk)titleBadge=' <span class="badge badge-gold">Seeding Week</span>';
+  else if(isTourney)titleBadge=' <span class="badge badge-accent">'+tLabel+'</span>';
+
+  let h='<div class="card"><div class="card-title">⚔️ Weekly Matchups'+titleBadge+'</div><div class="flex-between" style="margin-bottom:20px"><select onchange="mWk=+this.value;renderMatchups()" style="width:auto">'+opts+'</select>'+ab+'</div>';
   // Admin: player selector for matchup generation
   if(isAdmin&&!(wk?.matchups?.length)){
     const mExcl=wk?.matchupExcluded||[];
@@ -885,6 +952,19 @@ function finalizeWeek(){
     genBracket();
     renderHandicaps();
     alert('Week '+hcpWk+' finalized! Seeding week complete — tournament bracket generated!');
+    goPage('tournament');
+    return;
+  }
+  // If tournament week, advance bracket winners based on matchup results
+  if(isTournamentWeek(hcpWk)&&S.tournament&&wk){
+    const ns=wk.noShows||{};
+    (wk.matchups||[]).forEach(m=>{
+      if(!m.bracketMatchId)return;
+      const winner=getMatchWinner(m,wk);
+      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner);
+    });
+    renderHandicaps();
+    alert('Week '+hcpWk+' finalized! Tournament bracket updated.');
     goPage('tournament');
     return;
   }
