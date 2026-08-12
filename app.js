@@ -82,32 +82,39 @@ function getTournamentRound(wn){
   const idx=postSeed.findIndex(w=>w.wn===wn);
   return idx>=0?idx+1:0;
 }
-function getBracketMatchesForRound(tRound){
+// Get all bracket matches for a specific round (actual matches only, not byes)
+function getPlayableMatchesForRound(tRound){
   const t=S.tournament;if(!t||!t.regions)return[];
   const matches=[];
   const maxRR=Math.max(...t.regions.map(r=>r.totalRounds));
-  if(tRound<=maxRR){t.regions.forEach(r=>{if(tRound<=r.totalRounds)r.matches.filter(m=>m.round===tRound).forEach(m=>matches.push(m));});}
-  else if(tRound===maxRR+1){t.semis.forEach(m=>matches.push(m));}
-  else if(tRound===maxRR+2){matches.push(t.final);}
-  return matches;
-}
-// Get all bracket matches that are ready to play (both players set, no winner yet, not a bye)
-function getReadyBracketMatches(){
-  const t=S.tournament;if(!t||!t.regions)return[];
-  const matches=[];
-  t.regions.forEach(r=>{r.matches.forEach(m=>{if(!m.isBye&&m.g1&&m.g2&&!m.winner)matches.push(m);});});
-  t.semis.forEach(m=>{if(m.g1&&m.g2&&!m.winner)matches.push(m);});
-  if(t.final&&t.final.g1&&t.final.g2&&!t.final.winner)matches.push(t.final);
+  if(tRound<=maxRR){
+    t.regions.forEach(r=>{
+      if(tRound<=r.totalRounds){
+        r.matches.filter(m=>m.round===tRound&&!m.isBye&&m.g1&&m.g2&&!m.winner).forEach(m=>matches.push(m));
+      }
+    });
+  }else if(tRound===maxRR+1){
+    t.semis.filter(m=>m.g1&&m.g2&&!m.winner).forEach(m=>matches.push(m));
+  }else if(tRound===maxRR+2){
+    if(t.final&&t.final.g1&&t.final.g2&&!t.final.winner)matches.push(t.final);
+  }
   return matches;
 }
 function syncBracketToWeek(wn){
   const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
-  // Get all matches that are ready to play right now
-  const ready=getReadyBracketMatches();
-  if(!ready.length){alert('No bracket matches are ready to play. Ensure prior round winners have been advanced.');return;}
+  const tRound=getTournamentRound(wn);if(!tRound)return;
+  const ready=getPlayableMatchesForRound(tRound);
+  if(!ready.length){alert('No bracket matches ready for this round. Ensure prior round winners have been advanced on the Tournament tab.');return;}
   const ms=ready.map(m=>({g1:m.g1,g2:m.g2,result:null,bracketMatchId:m.id}));
   wk.matchups=ms;wk.isTournament=true;svW();
-  alert(ms.length+' tournament matchup'+(ms.length!==1?'s':'')+' synced from bracket.');
+  alert(ms.length+' tournament matchup'+(ms.length!==1?'s':'')+' synced from bracket (Round '+tRound+').');
+}
+function clearTourneyMatchups(wn){
+  if(!confirm('Clear tournament matchups for this week?'))return;
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk)return;
+  wk.matchups=[];wk.scores={};wk.noShows={};delete wk.isTournament;
+  const subKey='w'+wn;if(S.weekSubmissions[subKey])delete S.weekSubmissions[subKey];
+  sv('weekSubmissions',S.weekSubmissions);svW();
 }
 // Get tournament round label
 function getTournamentRoundLabel(tRound){
@@ -465,8 +472,9 @@ function renderMatchupsInner(rws){
   if(isAdmin){
     if(isSeedWk){ab='<button class="btn btn-primary" onclick="genSeedingMatchups()">🎯 Generate Seeded Matchups</button>';}
     else if(isTourney){
-      const hasMatchups=wk?.matchups?.length>0;
-      ab=hasMatchups?'<span class="badge badge-accent">Synced from Bracket</span>':'<button class="btn btn-primary" onclick="syncBracketToWeek('+mWk+')">🏆 Sync from Bracket</button>';
+      ab='<div class="flex-wrap"><button class="btn btn-primary" onclick="syncBracketToWeek('+mWk+')">🏆 Sync from Bracket</button>';
+      if(wk?.matchups?.length)ab+='<button class="btn btn-ghost btn-sm" onclick="clearTourneyMatchups('+mWk+')">Clear Matchups</button>';
+      ab+='</div>';
     }
     else{ab='<div class="flex-wrap"><button class="btn btn-primary" onclick="genMatch()">🎲 Random Matchups</button><button class="btn btn-ghost" onclick="resolveMatch()">⚡ Resolve</button></div>';}
   }
