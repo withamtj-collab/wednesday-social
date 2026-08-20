@@ -755,10 +755,31 @@ function renderTournament(){
     if(regions[2])h+=renderRegion(regions[2],2,seeded,true);
     h+='</div>';
     h+='</div>';
-    if(isAdmin){h+='<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
-    h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waTournament()">📱 Share Bracket</button>';
-    h+='<button class="btn btn-danger btn-sm" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
-    h+='</div>';}
+    if(isAdmin){
+      // Swap players tool
+      h+='<div class="card" style="margin-top:16px"><div class="card-title">🔄 Swap Players in Bracket</div>';
+      h+='<div style="font-size:12px;color:var(--dim);margin-bottom:12px">Select two players to swap their positions in the bracket. All references (matches, winners, advancements) will be updated.</div>';
+      let swapOpts='<option value="">Select player...</option>';
+      // Collect all players in the bracket
+      const bracketPlayers=new Set();
+      t.regions.forEach(r=>{r.matches.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner&&m.winner!=='tie')bracketPlayers.add(m.winner);});});
+      t.semis?.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner)bracketPlayers.add(m.winner);});
+      if(t.final){if(t.final.g1)bracketPlayers.add(t.final.g1);if(t.final.g2)bracketPlayers.add(t.final.g2);if(t.final.winner)bracketPlayers.add(t.final.winner);}
+      [...bracketPlayers].map(id=>({id,name:gN(id),seed:seeded.find(g=>g.id===id)?.seed||99})).sort((a,b)=>a.seed-b.seed).forEach(p=>{
+        swapOpts+='<option value="'+p.id+'">('+p.seed+') '+p.name+'</option>';
+      });
+      h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+      h+='<select id="swap-p1" style="width:auto">'+swapOpts+'</select>';
+      h+='<span style="color:var(--dim);font-weight:600">↔</span>';
+      h+='<select id="swap-p2" style="width:auto">'+swapOpts+'</select>';
+      h+='<button class="btn btn-primary btn-sm" onclick="swapBracketPlayers()">Swap</button>';
+      h+='</div></div>';
+      // Share and reset
+      h+='<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
+      h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waTournament()">📱 Share Bracket</button>';
+      h+='<button class="btn btn-danger btn-sm" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
+      h+='</div>';
+    }
   }
   h+='</div>';
   // Seedings table
@@ -915,6 +936,21 @@ function setTW(mid,wid){
   // Check champion
   t.champion=t.final.winner?gN(t.final.winner):null;
   svT();
+}
+function swapBracketPlayers(){
+  const p1=document.getElementById('swap-p1')?.value;
+  const p2=document.getElementById('swap-p2')?.value;
+  if(!p1||!p2){alert('Select both players.');return;}
+  if(p1===p2){alert('Select two different players.');return;}
+  if(!confirm('Swap '+gN(p1)+' and '+gN(p2)+' in the bracket? All match positions, winners, and advancements will be updated.'))return;
+  const t=S.tournament;if(!t)return;
+  function swapId(obj,key){if(obj[key]===p1)obj[key]=p2;else if(obj[key]===p2)obj[key]=p1;}
+  t.regions.forEach(r=>{r.matches.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});});
+  t.semis?.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});
+  if(t.final){swapId(t.final,'g1');swapId(t.final,'g2');swapId(t.final,'winner');}
+  t.champion=t.final?.winner?gN(t.final.winner):null;
+  svT();
+  alert(gN(p1)+' and '+gN(p2)+' have been swapped.');
 }
 
 // ─── WEEK FINALIZATION WORKFLOW ───────────────────────────────
