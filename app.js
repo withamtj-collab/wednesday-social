@@ -418,14 +418,21 @@ function renderScores(){
   if(isAdmin){
     const subKey='w'+scWk;const sub=S.weekSubmissions[subKey]||{};
     const finalized=sub.finalized;const scoresSubmitted=sub.scores;
+    const isTourneyOrSeed=isTournamentWeek(scWk)||isSeedingWeek(scWk);
     h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
     if(finalized){
       h+='<span class="badge badge-accent">Week '+scWk+' Finalized ✓</span>';
       h+='<button class="btn btn-ghost btn-sm" onclick="unsubmitScores()">↩ Un-finalize</button>';
     }else if(scoresSubmitted){
-      h+='<span class="badge badge-gold">Scores submitted — review handicaps to finalize</span>';
-      h+='<button class="btn btn-ghost btn-sm" onclick="hcpWk=scWk;goPage(\'handicaps\')">→ Review Handicaps</button>';
-      h+='<button class="btn btn-ghost btn-sm" onclick="unsubmitScores()">↩ Un-submit</button>';
+      if(isTourneyOrSeed){
+        // Tournament/seeding weeks: finalize directly from scores page (no handicap review needed)
+        h+='<button class="btn btn-primary" onclick="finalizeFromScores()">🔒 Finalize Week '+scWk+'</button>';
+        h+='<button class="btn btn-ghost btn-sm" onclick="unsubmitScores()">↩ Un-submit</button>';
+      }else{
+        h+='<span class="badge badge-gold">Scores submitted — review handicaps to finalize</span>';
+        h+='<button class="btn btn-ghost btn-sm" onclick="hcpWk=scWk;goPage(\'handicaps\')">→ Review Handicaps</button>';
+        h+='<button class="btn btn-ghost btn-sm" onclick="unsubmitScores()">↩ Un-submit</button>';
+      }
     }else{
       h+='<button class="btn btn-primary" onclick="submitScores()">✅ Submit Scores</button>';
     }
@@ -920,11 +927,52 @@ function submitScores(){
   S.weekSubmissions[subKey].scores=true;
   sv('weekSubmissions',S.weekSubmissions);
   renderScores();
-  // Auto-navigate to handicaps page for step 2
-  if(confirm('Scores submitted for Week '+scWk+'. Review handicaps now?')){
-    hcpWk=scWk;
-    goPage('handicaps');
+  const isTourneyOrSeed=isTournamentWeek(scWk)||isSeedingWeek(scWk);
+  if(isTourneyOrSeed){
+    alert('Scores submitted for Week '+scWk+'. Click Finalize to lock results.');
+  }else{
+    if(confirm('Scores submitted for Week '+scWk+'. Review handicaps now?')){
+      hcpWk=scWk;goPage('handicaps');
+    }
   }
+}
+function finalizeFromScores(){
+  const subKey='w'+scWk;
+  if(!S.weekSubmissions[subKey])S.weekSubmissions[subKey]={};
+  S.weekSubmissions[subKey].handicaps=true;
+  S.weekSubmissions[subKey].finalized=true;
+  sv('weekSubmissions',S.weekSubmissions);
+  // Snapshot handicaps (frozen for tournament)
+  const wk=S.weeks.find(w=>w.wn===scWk);
+  if(wk){
+    const locked={};
+    S.golfers.forEach(g=>{locked[g.id]=safeHcp(g,S.weeks);});
+    wk.lockedHcps=locked;
+    svW();
+  }
+  // Check if seeding week — auto-generate bracket
+  const isSeedWk=isSeedingWeek(scWk);
+  if(isSeedWk&&!S.tournament){
+    genBracket();
+    renderScores();
+    alert('Week '+scWk+' finalized! Seeding week complete — tournament bracket generated!');
+    goPage('tournament');
+    return;
+  }
+  // If tournament week, advance bracket winners
+  if(isTournamentWeek(scWk)&&S.tournament&&wk){
+    (wk.matchups||[]).forEach(m=>{
+      if(!m.bracketMatchId)return;
+      const winner=getMatchWinner(m,wk);
+      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner);
+    });
+    renderScores();
+    alert('Week '+scWk+' finalized! Tournament bracket updated.');
+    goPage('tournament');
+    return;
+  }
+  renderScores();
+  alert('Week '+scWk+' finalized!');
 }
 function unsubmitScores(){
   if(!confirm('Un-submit scores for Week '+scWk+'? This will also un-finalize this week.'))return;
