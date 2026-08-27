@@ -177,7 +177,11 @@ function getMatchWinner(m,wk){
     h1=safeHcp(g1,S.weeks);h2=safeHcp(g2,S.weeks);
   }
   const n1=s1-h1,n2=s2-h2;
-  return n1<n2?m.g1:n2<n1?m.g2:'tie';
+  if(n1<n2)return m.g1;
+  if(n2<n1)return m.g2;
+  // Tie: check for tiebreak winner (tournament only)
+  if(m.tiebreakWinner)return m.tiebreakWinner;
+  return'tie';
 }
 function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble||wk.isRainOut)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
 if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
@@ -335,9 +339,15 @@ function renderResults(){
         if(ns1&&ns2)winner=null;// Both no-show: no match
         else if(ns1)winner=m.g2;
         else if(ns2)winner=m.g1;
-        else if(n1!=null&&n2!=null){winner=n1<n2?m.g1:n2<n1?m.g2:'tie';}
+        else if(n1!=null&&n2!=null){
+          if(n1<n2)winner=m.g1;
+          else if(n2<n1)winner=m.g2;
+          else if(m.tiebreakWinner)winner=m.tiebreakWinner;// Tiebreak
+          else winner='tie';
+        }
       }
       if(!winner&&!m.g2)winner=m.g1;// BYE
+      const isTiebreak=m.tiebreakWinner&&n1!=null&&n2!=null&&n1===n2;
 
       const isWin1=winner===m.g1,isWin2=m.g2&&winner===m.g2,isTie=winner==='tie';
       const hasOutcome=!!winner;
@@ -356,7 +366,7 @@ function renderResults(){
       if(ns1)h+='<span class="badge badge-danger">NS</span>';
       else if(s1!=null)h+='<span style="font-size:12px;color:var(--dim)">'+s1+(n1!=null?' (net '+n1+')':'')+'</span>';
       h+='</div>';
-      h+='<div style="font-size:11px;color:var(--dim);padding:0 10px;white-space:nowrap">'+(bothNS?'No Match':isTie?'TIE':hasOutcome?'def.':'vs')+'</div>';
+      h+='<div style="font-size:11px;color:var(--dim);padding:0 10px;white-space:nowrap">'+(bothNS?'No Match':isTiebreak?'⚖️ TB':isTie?'TIE':hasOutcome?'def.':'vs')+'</div>';
       h+='<div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:flex-end">';
       if(g2){
         if(ns2)h+='<span class="badge badge-danger">NS</span>';
@@ -519,7 +529,23 @@ function renderMatchupsInner(rws){
     ms.forEach((m,i)=>{const g1=S.golfers.find(g=>g.id===m.g1),g2=m.g2?S.golfers.find(g=>g.id===m.g2):null;const ns1=ns[m.g1],ns2=m.g2?ns[m.g2]:false;const s1=wk.scores?.[m.g1],s2=m.g2?wk.scores?.[m.g2]:null;const h1=wk.lockedHcps?wk.lockedHcps[m.g1]||0:g1?safeHcp(g1,S.weeks):0;const h2=wk.lockedHcps?(m.g2?wk.lockedHcps[m.g2]||0:0):g2?safeHcp(g2,S.weeks):0;const n1=(!ns1&&s1)?s1-h1:null,n2=(!ns2&&s2)?s2-h2:null;
       const shadowTag=m.isShadow?'<div style="font-size:10px;color:#60a5fa;margin-bottom:4px">👤 Shadow Match — result counts for '+gN(m.g1)+' only</div>':(m.isSpecial?'<div style="font-size:10px;color:var(--gold);margin-bottom:4px">⚡ Special Matchup</div>':'');
       h+='<div class="match-card"'+(m.isShadow?' style="border-color:rgba(96,165,250,.4);border-style:dashed"':'')+'><div class="match-label">Match '+(i+1)+'</div>'+shadowTag+'<div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;text-align:center'+(ns1?';opacity:.5':'')+'"><div class="match-name'+(m.result===m.g1?' winner':'')+'">'+(g1?.name||'?')+'</div>'+(ns1?'<div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-detail">HCP:'+h1+(s1?' | '+s1:'')+'</div>'+(n1!=null?'<div class="match-net'+(m.result===m.g1?' winner':'')+'">'+n1+'</div>':''))+'</div><div class="match-vs">VS</div><div style="flex:1;text-align:center'+(ns2?';opacity:.5':'')+'">'+
-      (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>'+(m.result?'<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>':'')+'</div>';});
+      (g2?(ns2?'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail" style="color:var(--danger)">No Show</div>':'<div class="match-name'+(m.result===m.g2?' winner':'')+'">'+g2.name+'</div><div class="match-detail">HCP:'+h2+(s2?' | '+s2:'')+'</div>'+(n2!=null?'<div class="match-net'+(m.result===m.g2?' winner':'')+'">'+n2+'</div>':'')):'<div style="color:var(--dim)">BYE</div>')+'</div></div>';
+      // Result display
+      if(m.result){h+='<div style="text-align:center;margin-top:8px">'+(m.result==='tie'?'<span class="badge badge-silver">TIE</span>':'<span class="badge badge-accent">Winner: '+gN(m.result)+'</span>')+'</div>';}
+      // Tiebreaker selector for tournament ties
+      const isTiedMatch=n1!=null&&n2!=null&&n1===n2&&(isTourney||isSeedWk);
+      if(isTiedMatch&&isAdmin&&m.g2){
+        const tbWinner=m.tiebreakWinner||null;
+        h+='<div style="margin-top:8px;padding:8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;text-align:center">';
+        h+='<div style="font-size:11px;color:var(--gold);font-weight:600;margin-bottom:6px">⚖️ Tiebreaker Required</div>';
+        h+='<div style="display:flex;gap:6px;justify-content:center">';
+        h+='<button class="btn btn-sm'+(tbWinner===m.g1?' btn-primary':' btn-ghost')+'" onclick="setTiebreakWinner('+mWk+','+i+',\''+m.g1+'\')">'+gN(m.g1)+'</button>';
+        h+='<button class="btn btn-sm'+(tbWinner===m.g2?' btn-primary':' btn-ghost')+'" onclick="setTiebreakWinner('+mWk+','+i+',\''+m.g2+'\')">'+gN(m.g2)+'</button>';
+        h+='</div></div>';
+      }else if(isTiedMatch&&!isAdmin&&m.tiebreakWinner){
+        h+='<div style="text-align:center;margin-top:8px"><span class="badge badge-gold">Tiebreaker: '+gN(m.tiebreakWinner)+'</span></div>';
+      }
+      h+='</div>';});
     h+='</div>';}else{h+='<div style="text-align:center;padding:40px;color:var(--dim)">'+(isAdmin?'Select players above, then click 🎲 Random Matchups.':'No matchups yet.')+'</div>';}
   h+='</div>';document.getElementById('page-matchups').innerHTML=h;
 }
@@ -585,6 +611,12 @@ function genMatch(){
 }
 function togMatchPl(gid){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;if(!wk.matchupExcluded)wk.matchupExcluded=[];const i=wk.matchupExcluded.indexOf(gid);if(i>=0)wk.matchupExcluded.splice(i,1);else wk.matchupExcluded.push(gid);svW();}
 function resolveMatch(){const wk=S.weeks.find(w=>w.wn===mWk);if(!wk)return;const ns=wk.noShows||{};wk.matchups=(wk.matchups||[]).map(m=>{if(!m.g2)return{...m,result:m.g1};const ns1=ns[m.g1],ns2=ns[m.g2];if(ns1&&ns2)return{...m,result:null};if(ns1)return{...m,result:m.g2};if(ns2)return{...m,result:m.g1};const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return m;const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);const n1=s1-safeHcp(g1,S.weeks),n2=s2-safeHcp(g2,S.weeks);return{...m,result:n1<n2?m.g1:n2<n1?m.g2:'tie'};});svW();}
+function setTiebreakWinner(wn,matchIdx,winnerId){
+  const wk=S.weeks.find(w=>w.wn===wn);if(!wk||!wk.matchups)return;
+  const m=wk.matchups[matchIdx];if(!m)return;
+  m.tiebreakWinner=winnerId;
+  svW();renderMatchups();
+}
 
 // ─── SCRAMBLE ────────────────────────────────────────────────
 function renderScramble(){
