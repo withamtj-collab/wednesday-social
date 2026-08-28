@@ -97,6 +97,7 @@ function getPlayableMatchesForRound(tRound){
     t.semis.filter(m=>m.g1&&m.g2&&!m.winner).forEach(m=>matches.push(m));
   }else if(tRound===maxRR+2){
     if(t.final&&t.final.g1&&t.final.g2&&!t.final.winner)matches.push(t.final);
+    if(t.thirdPlace&&t.thirdPlace.g1&&t.thirdPlace.g2&&!t.thirdPlace.winner)matches.push(t.thirdPlace);
   }
   return matches;
 }
@@ -780,6 +781,8 @@ function renderTournament(){
     }
     if(t.final){h+='<div class="bk-rl">Championship</div>';h+=renderBracketMatch(t.final,seeded,true,'final-m');}
     if(t.champion)h+='<div style="text-align:center;margin-top:8px"><div style="font-size:28px">🏆</div><div style="font-size:16px;font-weight:800;color:var(--gold)">'+t.champion+'</div><div style="font-size:11px;color:var(--dim)">Champion</div></div>';
+    if(t.thirdPlace){h+='<div class="bk-rl" style="margin-top:16px">3rd Place</div>';h+=renderBracketMatch(t.thirdPlace,seeded,true,'semi-m');}
+    if(t.thirdPlaceWinner)h+='<div style="text-align:center;margin-top:4px"><div style="font-size:13px;font-weight:700;color:var(--silver)">🥉 '+t.thirdPlaceWinner+'</div></div>';
     h+='</div>';
     // Right half: Region 2 (top) and Region 3 (bottom)
     h+='<div class="bracket-half">';
@@ -797,6 +800,7 @@ function renderTournament(){
       t.regions.forEach(r=>{r.matches.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner&&m.winner!=='tie')bracketPlayers.add(m.winner);});});
       t.semis?.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner)bracketPlayers.add(m.winner);});
       if(t.final){if(t.final.g1)bracketPlayers.add(t.final.g1);if(t.final.g2)bracketPlayers.add(t.final.g2);if(t.final.winner)bracketPlayers.add(t.final.winner);}
+      if(t.thirdPlace){if(t.thirdPlace.g1)bracketPlayers.add(t.thirdPlace.g1);if(t.thirdPlace.g2)bracketPlayers.add(t.thirdPlace.g2);if(t.thirdPlace.winner)bracketPlayers.add(t.thirdPlace.winner);}
       [...bracketPlayers].map(id=>({id,name:gN(id),seed:seeded.find(g=>g.id===id)?.seed||99})).sort((a,b)=>a.seed-b.seed).forEach(p=>{
         swapOpts+='<option value="'+p.id+'">('+p.seed+') '+p.name+'</option>';
       });
@@ -881,6 +885,13 @@ function renderBracketMatch(m,seeded,showPick,cls){
   const getLbl=(slot)=>{
     if(m.feedsSemis)return tbdFinalLabel(slot);
     if(m.feedsRegions)return tbdRegionLabel(slot);
+    // 3rd place match: show semi losers
+    const t=S.tournament;
+    if(t&&t.thirdPlace&&m.id===t.thirdPlace.id){
+      const semi=t.semis?.[slot];
+      if(semi&&semi.g1&&semi.g2)return'L: '+gN(semi.g1)+' / '+gN(semi.g2);
+      return'Semi '+(slot+1)+' Loser';
+    }
     return tbdLabel(slot);
   };
   const getHcp=(id)=>{const g=S.golfers.find(g=>g.id===id);return g?safeHcp(g,S.weeks):0;};
@@ -940,16 +951,18 @@ function genBracket(){
   ];
   // Final
   const final={id:genId(),g1:null,g2:null,winner:null,feedsSemis:[0,1]};
-  S.tournament={regions,semis,final,champion:null};
+  const thirdPlace={id:genId(),g1:null,g2:null,winner:null};
+  S.tournament={regions,semis,final,thirdPlace,champion:null,thirdPlaceWinner:null};
   svT();
 }
 function setTW(mid,wid){
   const t=S.tournament;if(!t)return;
-  // Search all regions, semis, and final for the match
+  // Search all regions, semis, final, and thirdPlace for the match
   let match=null;
   t.regions.forEach(r=>{const m=r.matches.find(m=>m.id===mid);if(m)match=m;});
   if(!match)match=t.semis.find(m=>m.id===mid);
   if(!match&&t.final.id===mid)match=t.final;
+  if(!match&&t.thirdPlace&&t.thirdPlace.id===mid)match=t.thirdPlace;
   if(!match)return;
   match.winner=wid;
   // Advance within region
@@ -963,10 +976,25 @@ function setTW(mid,wid){
       t.semis.forEach(s=>{if(s.feedsRegions){const si=s.feedsRegions.indexOf(ri);if(si===0)s.g1=regionFinal[0].winner;if(si===1)s.g2=regionFinal[0].winner;}});
     }
   });
-  // Advance semis to final
-  t.semis.forEach((s,i)=>{if(s.winner){const si=t.final.feedsSemis.indexOf(i);if(si===0)t.final.g1=s.winner;if(si===1)t.final.g2=s.winner;t.final.winner=null;}});
-  // Check champion
+  // Advance semis: winners to final, losers to 3rd place
+  t.semis.forEach((s,i)=>{
+    if(s.winner){
+      const si=t.final.feedsSemis.indexOf(i);
+      if(si===0)t.final.g1=s.winner;
+      if(si===1)t.final.g2=s.winner;
+      t.final.winner=null;
+      // Feed loser to 3rd place match
+      if(t.thirdPlace&&s.g1&&s.g2){
+        const loser=s.winner===s.g1?s.g2:s.g1;
+        if(i===0)t.thirdPlace.g1=loser;
+        if(i===1)t.thirdPlace.g2=loser;
+        t.thirdPlace.winner=null;
+      }
+    }
+  });
+  // Check champion and 3rd place
   t.champion=t.final.winner?gN(t.final.winner):null;
+  t.thirdPlaceWinner=t.thirdPlace?.winner?gN(t.thirdPlace.winner):null;
   svT();
 }
 function swapBracketPlayers(){
@@ -980,7 +1008,9 @@ function swapBracketPlayers(){
   t.regions.forEach(r=>{r.matches.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});});
   t.semis?.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});
   if(t.final){swapId(t.final,'g1');swapId(t.final,'g2');swapId(t.final,'winner');}
+  if(t.thirdPlace){swapId(t.thirdPlace,'g1');swapId(t.thirdPlace,'g2');swapId(t.thirdPlace,'winner');}
   t.champion=t.final?.winner?gN(t.final.winner):null;
+  t.thirdPlaceWinner=t.thirdPlace?.winner?gN(t.thirdPlace.winner):null;
   svT();
   alert(gN(p1)+' and '+gN(p2)+' have been swapped.');
 }
