@@ -15,7 +15,7 @@ function loadData(){
   db.ref('league').on('value',snap=>{
     clearTimeout(timeout);
     const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.announcementImg=d.announcementImg||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};S.specialMatchups=d.specialMatchups?Object.values(d.specialMatchups):[];}
-    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';if(S.settings.tournamentLanding)curPage='tournament';renderNav();renderAnnouncement();updateSiteIcon();renderPage();
+    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';if(S.settings.tournamentLanding){curPage='tournament';document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));document.getElementById('page-tournament').classList.add('active');}renderNav();renderAnnouncement();updateSiteIcon();renderPage();
   },err=>{
     clearTimeout(timeout);
     console.error('Firebase error:',err);
