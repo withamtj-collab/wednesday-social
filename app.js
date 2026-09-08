@@ -15,7 +15,7 @@ function loadData(){
   db.ref('league').on('value',snap=>{
     clearTimeout(timeout);
     const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.announcementImg=d.announcementImg||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};S.specialMatchups=d.specialMatchups?Object.values(d.specialMatchups):[];}
-    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';repairLockedHcps();renderNav();renderAnnouncement();updateSiteIcon();renderPage();
+    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();updateSiteIcon();renderPage();
   },err=>{
     clearTimeout(timeout);
     console.error('Firebase error:',err);
@@ -186,20 +186,9 @@ function getMatchWinner(m,wk){
   if(m.tiebreakWinner)return m.tiebreakWinner;
   return'tie';
 }
-// Auto-repair: snapshot lockedHcps for any finalized week missing them
-function repairLockedHcps(){
-  let repaired=0;
-  S.weeks.forEach(wk=>{
-    if(!isWeekFinalized(wk.wn))return;
-    if(wk.lockedHcps)return;
-    // Snapshot current handicaps for this week
-    const locked={};
-    S.golfers.forEach(g=>{locked[g.id]=safeHcp(g,S.weeks);});
-    wk.lockedHcps=locked;
-    repaired++;
-  });
-  if(repaired>0){svW();console.log('Repaired lockedHcps for '+repaired+' weeks');}
-}
+// repairLockedHcps DISABLED — 2026 season locked HCPs preserved as-is
+// Will implement correct per-checkpoint locking for future seasons
+function repairLockedHcps(){}
 function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble||wk.isRainOut)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
 if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
 const winner=getMatchWinner(m,wk);if(!winner)return;
