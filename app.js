@@ -15,7 +15,7 @@ function loadData(){
   db.ref('league').on('value',snap=>{
     clearTimeout(timeout);
     const d=snap.val();if(d){S.golfers=d.golfers?Object.values(d.golfers):[];S.weeks=d.weeks?Object.values(d.weeks):[];S.settings=d.settings||{startDate:'',endDate:'',adminPassword:'golf2026',showScramble:false,showTournament:false};S.tournament=d.tournament||null;S.scrambleHistory=d.scrambleHistory?Object.values(d.scrambleHistory):[];S.announcement=d.announcement||'';S.announcementImg=d.announcementImg||'';S.hcpOverrides=d.hcpOverrides||{};S.weekSubmissions=d.weekSubmissions||{};S.specialMatchups=d.specialMatchups?Object.values(d.specialMatchups):[];}
-    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';renderNav();renderAnnouncement();updateSiteIcon();renderPage();
+    document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';repairLockedHcps();renderNav();renderAnnouncement();updateSiteIcon();renderPage();
   },err=>{
     clearTimeout(timeout);
     console.error('Firebase error:',err);
@@ -168,11 +168,14 @@ function getMatchWinner(m,wk){
   const ns=wk.noShows||{},ns1=ns[m.g1],ns2=ns[m.g2];
   if(ns1&&ns2)return null;if(ns1)return m.g2;if(ns2)return m.g1;
   const s1=wk.scores?.[m.g1],s2=wk.scores?.[m.g2];if(!s1||!s2)return null;
-  // Use locked handicaps for finalized weeks, current handicaps for unfinalized
+  // ALWAYS use locked handicaps for finalized weeks — never recalculate
   let h1,h2;
   if(wk.lockedHcps){
     h1=wk.lockedHcps[m.g1]||0;
     h2=wk.lockedHcps[m.g2]||0;
+  }else if(isWeekFinalized(wk.wn)){
+    // Finalized but missing lockedHcps — should not happen after repair
+    h1=0;h2=0;
   }else{
     const g1=S.golfers.find(g=>g.id===m.g1),g2=S.golfers.find(g=>g.id===m.g2);
     h1=safeHcp(g1,S.weeks);h2=safeHcp(g2,S.weeks);
@@ -180,9 +183,22 @@ function getMatchWinner(m,wk){
   const n1=s1-h1,n2=s2-h2;
   if(n1<n2)return m.g1;
   if(n2<n1)return m.g2;
-  // Tie: check for tiebreak winner (tournament only)
   if(m.tiebreakWinner)return m.tiebreakWinner;
   return'tie';
+}
+// Auto-repair: snapshot lockedHcps for any finalized week missing them
+function repairLockedHcps(){
+  let repaired=0;
+  S.weeks.forEach(wk=>{
+    if(!isWeekFinalized(wk.wn))return;
+    if(wk.lockedHcps)return;
+    // Snapshot current handicaps for this week
+    const locked={};
+    S.golfers.forEach(g=>{locked[g.id]=safeHcp(g,S.weeks);});
+    wk.lockedHcps=locked;
+    repaired++;
+  });
+  if(repaired>0){svW();console.log('Repaired lockedHcps for '+repaired+' weeks');}
 }
 function getRec(gid,wks){let w=0,l=0,t=0;(wks||S.weeks).forEach(wk=>{if(wk.isScramble||wk.isRainOut)return;if(!isWeekFinalized(wk.wn))return;(wk.matchups||[]).forEach(m=>{
 if(m.isShadow&&m.g2===gid)return;if(m.g1!==gid&&m.g2!==gid)return;
@@ -791,29 +807,41 @@ function renderTournament(){
     h+='</div>';
     h+='</div>';
     if(isAdmin){
-      // Swap players tool
-      h+='<div class="card" style="margin-top:16px"><div class="card-title">🔄 Swap Players in Bracket</div>';
-      h+='<div style="font-size:12px;color:var(--dim);margin-bottom:12px">Select two players to swap their positions in the bracket. All references (matches, winners, advancements) will be updated.</div>';
-      let swapOpts='<option value="">Select player...</option>';
-      // Collect all players in the bracket
-      const bracketPlayers=new Set();
-      t.regions.forEach(r=>{r.matches.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner&&m.winner!=='tie')bracketPlayers.add(m.winner);});});
-      t.semis?.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner)bracketPlayers.add(m.winner);});
-      if(t.final){if(t.final.g1)bracketPlayers.add(t.final.g1);if(t.final.g2)bracketPlayers.add(t.final.g2);if(t.final.winner)bracketPlayers.add(t.final.winner);}
-      if(t.thirdPlace){if(t.thirdPlace.g1)bracketPlayers.add(t.thirdPlace.g1);if(t.thirdPlace.g2)bracketPlayers.add(t.thirdPlace.g2);if(t.thirdPlace.winner)bracketPlayers.add(t.thirdPlace.winner);}
-      [...bracketPlayers].map(id=>({id,name:gN(id),seed:seeded.find(g=>g.id===id)?.seed||99})).sort((a,b)=>a.seed-b.seed).forEach(p=>{
-        swapOpts+='<option value="'+p.id+'">('+p.seed+') '+p.name+'</option>';
-      });
-      h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-      h+='<select id="swap-p1" style="width:auto">'+swapOpts+'</select>';
-      h+='<span style="color:var(--dim);font-weight:600">↔</span>';
-      h+='<select id="swap-p2" style="width:auto">'+swapOpts+'</select>';
-      h+='<button class="btn btn-primary btn-sm" onclick="swapBracketPlayers()">Swap</button>';
-      h+='</div></div>';
+      const locked=t.bracketLocked;
+      // Lock/unlock toggle
+      h+='<div style="margin-top:16px;display:flex;align-items:center;gap:12px">';
+      if(locked){
+        h+='<span class="badge badge-accent">🔒 Bracket Locked</span>';
+        h+='<button class="btn btn-ghost btn-sm" onclick="toggleBracketLock()">🔓 Unlock Bracket</button>';
+      }else{
+        h+='<button class="btn btn-primary btn-sm" onclick="toggleBracketLock()">🔒 Lock Bracket</button>';
+        h+='<span style="font-size:12px;color:var(--dim)">Locking prevents any changes to the bracket.</span>';
+      }
+      h+='</div>';
+      if(!locked){
+        // Swap players tool (only when unlocked)
+        h+='<div class="card" style="margin-top:16px"><div class="card-title">🔄 Swap Players in Bracket</div>';
+        h+='<div style="font-size:12px;color:var(--dim);margin-bottom:12px">Select two players to swap their positions in the bracket.</div>';
+        let swapOpts='<option value="">Select player...</option>';
+        const bracketPlayers=new Set();
+        t.regions.forEach(r=>{r.matches.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner&&m.winner!=='tie')bracketPlayers.add(m.winner);});});
+        t.semis?.forEach(m=>{if(m.g1)bracketPlayers.add(m.g1);if(m.g2)bracketPlayers.add(m.g2);if(m.winner)bracketPlayers.add(m.winner);});
+        if(t.final){if(t.final.g1)bracketPlayers.add(t.final.g1);if(t.final.g2)bracketPlayers.add(t.final.g2);if(t.final.winner)bracketPlayers.add(t.final.winner);}
+        if(t.thirdPlace){if(t.thirdPlace.g1)bracketPlayers.add(t.thirdPlace.g1);if(t.thirdPlace.g2)bracketPlayers.add(t.thirdPlace.g2);if(t.thirdPlace.winner)bracketPlayers.add(t.thirdPlace.winner);}
+        [...bracketPlayers].map(id=>({id,name:gN(id),seed:seeded.find(g=>g.id===id)?.seed||99})).sort((a,b)=>a.seed-b.seed).forEach(p=>{
+          swapOpts+='<option value="'+p.id+'">('+p.seed+') '+p.name+'</option>';
+        });
+        h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+        h+='<select id="swap-p1" style="width:auto">'+swapOpts+'</select>';
+        h+='<span style="color:var(--dim);font-weight:600">↔</span>';
+        h+='<select id="swap-p2" style="width:auto">'+swapOpts+'</select>';
+        h+='<button class="btn btn-primary btn-sm" onclick="swapBracketPlayers()">Swap</button>';
+        h+='</div></div>';
+      }
       // Share and reset
       h+='<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
       h+='<button class="btn btn-ghost btn-sm" style="color:#25D366;border-color:#25D366" onclick="waTournament()">📱 Share Bracket</button>';
-      h+='<button class="btn btn-danger btn-sm" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
+      if(!locked)h+='<button class="btn btn-danger btn-sm" onclick="if(confirm(\'Reset bracket?\')){S.tournament=null;svT();}">Reset Bracket</button>';
       h+='</div>';
     }
   }
@@ -955,8 +983,20 @@ function genBracket(){
   S.tournament={regions,semis,final,thirdPlace,champion:null,thirdPlaceWinner:null};
   svT();
 }
-function setTW(mid,wid){
+function toggleBracketLock(){
   const t=S.tournament;if(!t)return;
+  if(t.bracketLocked){
+    if(!confirm('Unlock the bracket? This allows changes to be made.'))return;
+    t.bracketLocked=false;
+  }else{
+    if(!confirm('Lock the bracket? No swaps, resets, or manual winner changes will be allowed until unlocked.'))return;
+    t.bracketLocked=true;
+  }
+  svT();
+}
+function setTW(mid,wid,bypassLock){
+  const t=S.tournament;if(!t)return;
+  if(t.bracketLocked&&!bypassLock){alert('Bracket is locked. Unlock it first to make changes.');return;}
   // Search all regions, semis, final, and thirdPlace for the match
   let match=null;
   t.regions.forEach(r=>{const m=r.matches.find(m=>m.id===mid);if(m)match=m;});
@@ -998,12 +1038,13 @@ function setTW(mid,wid){
   svT();
 }
 function swapBracketPlayers(){
+  const t=S.tournament;if(!t)return;
+  if(t.bracketLocked){alert('Bracket is locked. Unlock it first to make changes.');return;}
   const p1=document.getElementById('swap-p1')?.value;
   const p2=document.getElementById('swap-p2')?.value;
   if(!p1||!p2){alert('Select both players.');return;}
   if(p1===p2){alert('Select two different players.');return;}
   if(!confirm('Swap '+gN(p1)+' and '+gN(p2)+' in the bracket? All match positions, winners, and advancements will be updated.'))return;
-  const t=S.tournament;if(!t)return;
   function swapId(obj,key){if(obj[key]===p1)obj[key]=p2;else if(obj[key]===p2)obj[key]=p1;}
   t.regions.forEach(r=>{r.matches.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});});
   t.semis?.forEach(m=>{swapId(m,'g1');swapId(m,'g2');swapId(m,'winner');});
@@ -1062,7 +1103,7 @@ function finalizeFromScores(){
     (wk.matchups||[]).forEach(m=>{
       if(!m.bracketMatchId)return;
       const winner=getMatchWinner(m,wk);
-      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner);
+      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner,true);
     });
     renderScores();
     alert('Week '+scWk+' finalized! Tournament bracket updated.');
@@ -1122,7 +1163,7 @@ function finalizeWeek(){
     (wk.matchups||[]).forEach(m=>{
       if(!m.bracketMatchId)return;
       const winner=getMatchWinner(m,wk);
-      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner);
+      if(winner&&winner!=='tie')setTW(m.bracketMatchId,winner,true);
     });
     renderHandicaps();
     alert('Week '+hcpWk+' finalized! Tournament bracket updated.');
